@@ -1,0 +1,179 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserStatus() {
+      return currentUserDoc().data.status;
+    }
+
+    function isActiveUser() {
+      return currentUserExists()
+        && currentUserStatus() == "ACTIVE";
+    }
+
+    function hasPermission(permission) {
+      return isActiveUser()
+        && permission in currentUserDoc().data.permissionsCache;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || hasPermission("user.read");
+
+      allow create: if false;
+
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["avatar", "updatedAt"]);
+
+      allow delete: if false;
+    }
+
+    match /roles/{roleId} {
+      allow read: if hasPermission("role.read");
+      allow create, update, delete: if false;
+    }
+
+    match /permissions/{permissionId} {
+      allow read: if hasPermission("permission.read");
+      allow create, update, delete: if false;
+    }
+
+    match /employees/{employeeId} {
+      allow read: if hasPermission("employee.read_all")
+        || hasPermission("employee.read")
+        || (
+          hasPermission("employee.read_own")
+          && resource.data.userId == request.auth.uid
+        );
+
+      allow create, delete: if false;
+
+      allow update: if hasPermission("employee.update_own")
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "phone",
+            "address",
+            "photo",
+            "emergencyContactName",
+            "emergencyContactPhone",
+            "notes",
+            "updatedAt"
+          ]);
+    }
+
+    match /clients/{clientId} {
+      allow read: if hasPermission("client.read_all") || hasPermission("client.read");
+      allow create, update, delete: if false;
+    }
+
+    match /projects/{projectId} {
+      allow read: if hasPermission("project.read_all") || hasPermission("project.read");
+      allow create, update, delete: if false;
+    }
+
+    match /projectMembers/{projectMemberId} {
+      allow read: if hasPermission("project_member.read");
+      allow create, update, delete: if false;
+    }
+
+    match /milestones/{milestoneId} {
+      allow read: if hasPermission("milestone.read");
+      allow create, update, delete: if false;
+    }
+
+    match /tasks/{taskId} {
+      allow read: if hasPermission("task.read_all")
+        || hasPermission("task.read")
+        || (
+          hasPermission("task.read_assigned")
+          && resource.data.assignedToId == request.auth.uid
+        );
+
+      allow create, update, delete: if false;
+    }
+
+    match /taskComments/{commentId} {
+      allow read: if hasPermission("task_comment.read");
+      allow create, update, delete: if false;
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if hasPermission("invoice.read_all") || hasPermission("invoice.read");
+      allow create, update, delete: if false;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if hasPermission("payment.read_all") || hasPermission("payment.read");
+      allow create, update, delete: if false;
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if hasPermission("expense.read_all")
+        || hasPermission("expense.read")
+        || (
+          hasPermission("expense.read_own")
+          && resource.data.createdById == request.auth.uid
+        );
+
+      allow create, update, delete: if false;
+    }
+
+    match /leaveRequests/{leaveRequestId} {
+      allow read: if hasPermission("leave.read_all")
+        || hasPermission("leave.read")
+        || (
+          hasPermission("leave.read_own")
+          && resource.data.userId == request.auth.uid
+        );
+
+      allow create, update, delete: if false;
+    }
+
+    match /attendanceRecords/{attendanceId} {
+      allow read: if hasPermission("attendance.read_all")
+        || hasPermission("attendance.read")
+        || (
+          hasPermission("attendance.read_own")
+          && resource.data.userId == request.auth.uid
+        );
+
+      allow create, update, delete: if false;
+    }
+
+    match /auditLogs/{auditLogId} {
+      allow read: if hasPermission("audit_log.read_all") || hasPermission("audit_log.read");
+      allow create, update, delete: if false;
+    }
+
+    match /loginLogs/{loginLogId} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /settings/{settingId} {
+      allow read: if hasPermission("setting.system.read") || hasPermission("setting.company.read");
+      allow create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
