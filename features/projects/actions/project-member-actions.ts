@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type {
   ProjectMemberDetail,
@@ -29,6 +32,11 @@ import {
   type RemoveProjectMemberInput,
   type UpdateProjectMemberInput,
 } from "@/features/projects/schemas/project-member-schema";
+import {
+  canAccessProjectForMutation,
+  canAccessProjectMember,
+  filterProjectMembersForUser,
+} from "@/features/projects/actions/project-access-scope";
 
 function revalidateProjectMemberPaths() {
   revalidatePath("/projects");
@@ -48,8 +56,9 @@ export async function listProjectMembersAction(
     const members = await listProjectMembersService({
       projectId: payload.projectId,
     });
+    const scopedMembers = await filterProjectMembersForUser(auth.user, members);
 
-    return successResponse("Project members berhasil dimuat.", members);
+    return successResponse("Project members berhasil dimuat.", scopedMembers);
   } catch (error) {
     return handleActionError(error);
   }
@@ -67,6 +76,13 @@ export async function getProjectMemberByIdAction(
 
     const member = await getProjectMemberByIdService(payload.id);
 
+    if (!(await canAccessProjectMember(auth.user, member))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk project member ini.",
+      };
+    }
+
     return successResponse("Project member berhasil dimuat.", member);
   } catch (error) {
     return handleActionError(error);
@@ -81,7 +97,17 @@ export async function addProjectMemberAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "project_member.create");
+    requireAnyPermission(auth.user, [
+      "project_member.create",
+      "project_member.assign",
+    ]);
+
+    if (!(await canAccessProjectForMutation(auth.user, payload.projectId))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk menambahkan member pada project ini.",
+      };
+    }
 
     const member = await addProjectMemberService({
       actor: auth.user,
@@ -106,6 +132,15 @@ export async function updateProjectMemberAction(
 
     requirePermission(auth.user, "project_member.update");
 
+    const existingMember = await getProjectMemberByIdService(payload.id);
+
+    if (!(await canAccessProjectMember(auth.user, existingMember))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk update project member ini.",
+      };
+    }
+
     const member = await updateProjectMemberService({
       actor: auth.user,
       ...payload,
@@ -127,7 +162,19 @@ export async function removeProjectMemberAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "project_member.delete");
+    requireAnyPermission(auth.user, [
+      "project_member.delete",
+      "project_member.remove",
+    ]);
+
+    const existingMember = await getProjectMemberByIdService(payload.id);
+
+    if (!(await canAccessProjectMember(auth.user, existingMember))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk menghapus project member ini.",
+      };
+    }
 
     const member = await removeProjectMemberService({
       actor: auth.user,

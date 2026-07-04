@@ -36,7 +36,7 @@ export async function listUsersAction(
   input: ListUsersInput = {},
 ): Promise<ActionResponse<UserListItem[]>> {
   try {
-    const payload = listUsersSchema.parse(input);
+    listUsersSchema.parse(input);
 
     const auth = await createSessionAuthContext();
 

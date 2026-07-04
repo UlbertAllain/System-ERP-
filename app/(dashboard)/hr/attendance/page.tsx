@@ -24,7 +24,7 @@ export default async function AttendancePage() {
           <CardTitle>Attendance Access Denied</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Akun sir tidak memiliki permission untuk membaca attendance.
+          Akun ini tidak memiliki permission untuk membaca attendance.
         </CardContent>
       </Card>
     );

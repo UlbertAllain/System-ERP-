@@ -95,7 +95,7 @@ async function getAuditLogsWithOrderedQuery(
 ): Promise<AuditLogListItem[]> {
   const safeLimit = params.limit ?? 100;
 
-  let query: Query<DocumentData> = getDb()
+  const query: Query<DocumentData> = getDb()
     .collection(COLLECTIONS.auditLogs)
     .orderBy("createdAt", "desc")
     .limit(safeLimit);

@@ -34,7 +34,7 @@ export default async function ChangePasswordPage() {
             NEXTY ERP
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Akun sir wajib mengganti password sebelum masuk dashboard.
+            Akun ini wajib mengganti password sebelum masuk dashboard.
           </p>
         </div>
 

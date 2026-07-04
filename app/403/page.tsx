@@ -16,7 +16,7 @@ export default function ForbiddenPage() {
 
         <CardContent className="space-y-5 text-sm text-muted-foreground">
           <p>
-            Akun sir tidak memiliki permission yang diperlukan untuk membuka
+            Akun ini tidak memiliki permission yang diperlukan untuk membuka
             halaman ini.
           </p>
 

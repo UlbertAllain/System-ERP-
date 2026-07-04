@@ -21,7 +21,7 @@ export default async function LoginPage() {
             NEXTY ERP
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Internal command center untuk operasional software house.
+            Sistem operasional internal untuk finance, project, HR, client, dan audit.
           </p>
         </div>
 

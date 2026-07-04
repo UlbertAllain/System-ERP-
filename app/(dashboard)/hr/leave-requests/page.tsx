@@ -24,7 +24,7 @@ export default async function LeaveRequestsPage() {
           <CardTitle>Leave Request Access Denied</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Akun sir tidak memiliki permission untuk membaca leave request.
+          Akun ini tidak memiliki permission untuk membaca leave request.
         </CardContent>
       </Card>
     );

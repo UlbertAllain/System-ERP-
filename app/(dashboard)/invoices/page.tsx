@@ -7,7 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCompanySettingAction } from "@/features/settings/actions";
 
 export default async function InvoicesPage() {
-  await requireAnyPagePermission(["invoice.read"]);
+  await requireAnyPagePermission([
+    "invoice.read",
+    "invoice.read_all",
+    "invoice.read_project",
+  ]);
 
   const [invoicesResult, clientsResult, projectsResult, companySettingResult] =
     await Promise.all([

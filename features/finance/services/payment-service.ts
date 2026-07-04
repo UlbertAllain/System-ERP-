@@ -151,36 +151,6 @@ function normalizeInvoiceDocument(
   };
 }
 
-async function getInvoiceDocumentOrThrow(id: string): Promise<InvoiceDetail> {
-  const invoiceSnap = await getDb()
-    .collection(COLLECTIONS.invoices)
-    .doc(id)
-    .get();
-
-  if (!invoiceSnap.exists) {
-    throw new AppError("Invoice tidak ditemukan.", 404, "INVOICE_NOT_FOUND");
-  }
-
-  const invoice = normalizeInvoiceDocument(
-    invoiceSnap.id,
-    invoiceSnap.data() ?? {},
-  );
-
-  if (invoice.deletedAt) {
-    throw new AppError("Invoice sudah dihapus.", 404, "INVOICE_DELETED");
-  }
-
-  if (invoice.status === "VOID") {
-    throw new AppError(
-      "Invoice VOID tidak bisa menerima payment.",
-      400,
-      "INVOICE_VOID_LOCKED",
-    );
-  }
-
-  return invoice;
-}
-
 async function getPaymentDocumentOrThrow(id: string): Promise<PaymentDetail> {
   const paymentSnap = await getDb()
     .collection(COLLECTIONS.payments)
@@ -192,65 +162,6 @@ async function getPaymentDocumentOrThrow(id: string): Promise<PaymentDetail> {
   }
 
   return normalizePaymentDocument(paymentSnap.id, paymentSnap.data() ?? {});
-}
-
-async function sumConfirmedPaymentsForInvoice(
-  invoiceId: string,
-  ignoredPaymentId?: string,
-): Promise<number> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.payments)
-    .where("invoiceId", "==", invoiceId)
-    .where("status", "==", "CONFIRMED")
-    .get();
-
-  return querySnap.docs
-    .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
-    .filter((payment) => payment.deletedAt === null)
-    .filter((payment) => payment.id !== ignoredPaymentId)
-    .reduce((total, payment) => total + payment.amount, 0);
-}
-
-async function syncInvoicePaymentState({
-  invoiceId,
-  paidAmount,
-}: {
-  invoiceId: string;
-  paidAmount: number;
-}): Promise<void> {
-  const invoice = await getInvoiceDocumentOrThrow(invoiceId);
-
-  if (paidAmount > invoice.totalAmount) {
-    throw new AppError(
-      "Total payment tidak boleh lebih besar dari total invoice.",
-      400,
-      "PAYMENT_EXCEEDS_INVOICE_TOTAL",
-    );
-  }
-
-  const remainingAmount = invoice.totalAmount - paidAmount;
-  const nextStatus =
-    paidAmount >= invoice.totalAmount && invoice.totalAmount > 0
-      ? "PAID"
-      : invoice.status === "PAID"
-        ? "ISSUED"
-        : invoice.status;
-
-  await getDb()
-    .collection(COLLECTIONS.invoices)
-    .doc(invoiceId)
-    .update({
-      paidAmount,
-      remainingAmount,
-      status: nextStatus,
-      paidAt:
-        nextStatus === "PAID"
-          ? invoice.paidAt
-            ? Timestamp.fromDate(invoice.paidAt)
-            : serverTimestamp()
-          : null,
-      updatedAt: serverTimestamp(),
-    });
 }
 
 export async function listPaymentsService({
@@ -315,8 +226,6 @@ export async function createPaymentService({
   referenceNumber,
   notes,
 }: CreatePaymentParams): Promise<PaymentDetail> {
-  const invoice = await getInvoiceDocumentOrThrow(invoiceId);
-
   if (amount <= 0) {
     throw new AppError(
       "Amount harus lebih dari 0.",
@@ -325,23 +234,66 @@ export async function createPaymentService({
     );
   }
 
-  const currentPaidAmount = await sumConfirmedPaymentsForInvoice(invoice.id);
-  const nextPaidAmount = currentPaidAmount + amount;
-
-  if (nextPaidAmount > invoice.totalAmount) {
-    throw new AppError(
-      "Payment melebihi sisa tagihan invoice.",
-      400,
-      "PAYMENT_EXCEEDS_REMAINING_AMOUNT",
-    );
-  }
-
+  const db = getDb();
+  const invoiceRef = db.collection(COLLECTIONS.invoices).doc(invoiceId);
   const paymentId = createDocumentId("payments");
+  const paymentRef = db.collection(COLLECTIONS.payments).doc(paymentId);
 
-  await getDb()
-    .collection(COLLECTIONS.payments)
-    .doc(paymentId)
-    .set({
+  const auditData = await db.runTransaction(async (transaction) => {
+    const invoiceSnap = await transaction.get(invoiceRef);
+
+    if (!invoiceSnap.exists) {
+      throw new AppError("Invoice tidak ditemukan.", 404, "INVOICE_NOT_FOUND");
+    }
+
+    const invoice = normalizeInvoiceDocument(
+      invoiceSnap.id,
+      invoiceSnap.data() ?? {},
+    );
+
+    if (invoice.deletedAt) {
+      throw new AppError("Invoice sudah dihapus.", 404, "INVOICE_DELETED");
+    }
+
+    if (invoice.status === "VOID") {
+      throw new AppError(
+        "Invoice VOID tidak bisa menerima payment.",
+        400,
+        "INVOICE_VOID_LOCKED",
+      );
+    }
+
+    const confirmedPaymentsSnap = await transaction.get(
+      db
+        .collection(COLLECTIONS.payments)
+        .where("invoiceId", "==", invoice.id)
+        .where("status", "==", "CONFIRMED"),
+    );
+
+    const currentPaidAmount = confirmedPaymentsSnap.docs
+      .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
+      .filter((payment) => payment.deletedAt === null)
+      .reduce((total, payment) => total + payment.amount, 0);
+
+    const nextPaidAmount = currentPaidAmount + amount;
+
+    if (nextPaidAmount > invoice.totalAmount) {
+      throw new AppError(
+        "Payment melebihi sisa tagihan invoice.",
+        400,
+        "PAYMENT_EXCEEDS_REMAINING_AMOUNT",
+      );
+    }
+
+    const remainingAmount = invoice.totalAmount - nextPaidAmount;
+    const nextStatus =
+      nextPaidAmount >= invoice.totalAmount && invoice.totalAmount > 0
+        ? "PAID"
+        : invoice.status === "PAID"
+          ? "ISSUED"
+          : invoice.status;
+
+    transaction.set(paymentRef, {
       id: paymentId,
 
       invoiceId: invoice.id,
@@ -367,9 +319,24 @@ export async function createPaymentService({
       deletedAt: null,
     });
 
-  await syncInvoicePaymentState({
-    invoiceId: invoice.id,
-    paidAmount: nextPaidAmount,
+    transaction.update(invoiceRef, {
+      paidAmount: nextPaidAmount,
+      remainingAmount,
+      status: nextStatus,
+      paidAt:
+        nextStatus === "PAID"
+          ? invoice.paidAt
+            ? Timestamp.fromDate(invoice.paidAt)
+            : serverTimestamp()
+          : null,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      nextPaidAmount,
+    };
   });
 
   await writeAuditLog({
@@ -381,11 +348,11 @@ export async function createPaymentService({
     oldValue: null,
     newValue: {
       id: paymentId,
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
+      invoiceId: auditData.invoiceId,
+      invoiceNumber: auditData.invoiceNumber,
       amount,
       method,
-      nextPaidAmount,
+      nextPaidAmount: auditData.nextPaidAmount,
     },
   });
 
@@ -401,18 +368,6 @@ export async function updatePaymentService({
   referenceNumber,
   notes,
 }: UpdatePaymentParams): Promise<PaymentDetail> {
-  const oldPayment = await getPaymentByIdService(id);
-
-  if (oldPayment.status === "CANCELLED") {
-    throw new AppError(
-      "Payment CANCELLED tidak bisa diperbarui.",
-      400,
-      "PAYMENT_CANCELLED_LOCKED",
-    );
-  }
-
-  const invoice = await getInvoiceDocumentOrThrow(oldPayment.invoiceId);
-
   if (amount <= 0) {
     throw new AppError(
       "Amount harus lebih dari 0.",
@@ -421,24 +376,91 @@ export async function updatePaymentService({
     );
   }
 
-  const paidWithoutCurrentPayment = await sumConfirmedPaymentsForInvoice(
-    invoice.id,
-    oldPayment.id,
-  );
-  const nextPaidAmount = paidWithoutCurrentPayment + amount;
+  const db = getDb();
+  const paymentRef = db.collection(COLLECTIONS.payments).doc(id);
 
-  if (nextPaidAmount > invoice.totalAmount) {
-    throw new AppError(
-      "Payment melebihi total invoice.",
-      400,
-      "PAYMENT_EXCEEDS_INVOICE_TOTAL",
+  const auditData = await db.runTransaction(async (transaction) => {
+    const paymentSnap = await transaction.get(paymentRef);
+
+    if (!paymentSnap.exists) {
+      throw new AppError("Payment tidak ditemukan.", 404, "PAYMENT_NOT_FOUND");
+    }
+
+    const oldPayment = normalizePaymentDocument(
+      paymentSnap.id,
+      paymentSnap.data() ?? {},
     );
-  }
 
-  await getDb()
-    .collection(COLLECTIONS.payments)
-    .doc(id)
-    .update({
+    if (oldPayment.deletedAt) {
+      throw new AppError("Payment sudah dihapus.", 404, "PAYMENT_DELETED");
+    }
+
+    if (oldPayment.status === "CANCELLED") {
+      throw new AppError(
+        "Payment CANCELLED tidak bisa diperbarui.",
+        400,
+        "PAYMENT_CANCELLED_LOCKED",
+      );
+    }
+
+    const invoiceRef = db
+      .collection(COLLECTIONS.invoices)
+      .doc(oldPayment.invoiceId);
+    const invoiceSnap = await transaction.get(invoiceRef);
+
+    if (!invoiceSnap.exists) {
+      throw new AppError("Invoice tidak ditemukan.", 404, "INVOICE_NOT_FOUND");
+    }
+
+    const invoice = normalizeInvoiceDocument(
+      invoiceSnap.id,
+      invoiceSnap.data() ?? {},
+    );
+
+    if (invoice.deletedAt) {
+      throw new AppError("Invoice sudah dihapus.", 404, "INVOICE_DELETED");
+    }
+
+    if (invoice.status === "VOID") {
+      throw new AppError(
+        "Invoice VOID tidak bisa menerima payment.",
+        400,
+        "INVOICE_VOID_LOCKED",
+      );
+    }
+
+    const confirmedPaymentsSnap = await transaction.get(
+      db
+        .collection(COLLECTIONS.payments)
+        .where("invoiceId", "==", invoice.id)
+        .where("status", "==", "CONFIRMED"),
+    );
+
+    const paidWithoutCurrentPayment = confirmedPaymentsSnap.docs
+      .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
+      .filter((payment) => payment.deletedAt === null)
+      .filter((payment) => payment.id !== oldPayment?.id)
+      .reduce((total, payment) => total + payment.amount, 0);
+
+    const nextPaidAmount = paidWithoutCurrentPayment + amount;
+
+    if (nextPaidAmount > invoice.totalAmount) {
+      throw new AppError(
+        "Payment melebihi total invoice.",
+        400,
+        "PAYMENT_EXCEEDS_INVOICE_TOTAL",
+      );
+    }
+
+    const remainingAmount = invoice.totalAmount - nextPaidAmount;
+    const nextStatus =
+      nextPaidAmount >= invoice.totalAmount && invoice.totalAmount > 0
+        ? "PAID"
+        : invoice.status === "PAID"
+          ? "ISSUED"
+          : invoice.status;
+
+    transaction.update(paymentRef, {
       amount,
       paymentDate: dateStringToTimestamp(paymentDate),
       method,
@@ -447,9 +469,23 @@ export async function updatePaymentService({
       updatedAt: serverTimestamp(),
     });
 
-  await syncInvoicePaymentState({
-    invoiceId: invoice.id,
-    paidAmount: nextPaidAmount,
+    transaction.update(invoiceRef, {
+      paidAmount: nextPaidAmount,
+      remainingAmount,
+      status: nextStatus,
+      paidAt:
+        nextStatus === "PAID"
+          ? invoice.paidAt
+            ? Timestamp.fromDate(invoice.paidAt)
+            : serverTimestamp()
+          : null,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      oldPayment,
+      nextPaidAmount,
+    };
   });
 
   await writeAuditLog({
@@ -459,15 +495,15 @@ export async function updatePaymentService({
     entityId: id,
     entityType: "payment",
     oldValue: {
-      amount: oldPayment.amount,
-      method: oldPayment.method,
-      referenceNumber: oldPayment.referenceNumber,
+      amount: auditData.oldPayment.amount,
+      method: auditData.oldPayment.method,
+      referenceNumber: auditData.oldPayment.referenceNumber,
     },
     newValue: {
       amount,
       method,
       referenceNumber: normalizeNullableString(referenceNumber),
-      nextPaidAmount,
+      nextPaidAmount: auditData.nextPaidAmount,
     },
   });
 
@@ -478,26 +514,100 @@ export async function cancelPaymentService({
   actor,
   id,
 }: PaymentIdParams): Promise<PaymentDetail> {
-  const oldPayment = await getPaymentByIdService(id);
+  const db = getDb();
+  const paymentRef = db.collection(COLLECTIONS.payments).doc(id);
 
-  if (oldPayment.status === "CANCELLED") {
-    return oldPayment;
+  const auditData = await db.runTransaction(async (transaction) => {
+    const paymentSnap = await transaction.get(paymentRef);
+
+    if (!paymentSnap.exists) {
+      throw new AppError("Payment tidak ditemukan.", 404, "PAYMENT_NOT_FOUND");
+    }
+
+    const oldPayment = normalizePaymentDocument(
+      paymentSnap.id,
+      paymentSnap.data() ?? {},
+    );
+
+    if (oldPayment.deletedAt) {
+      throw new AppError("Payment sudah dihapus.", 404, "PAYMENT_DELETED");
+    }
+
+    if (oldPayment.status === "CANCELLED") {
+      return {
+        oldPayment,
+        nextPaidAmount: oldPayment.amount,
+        changed: false,
+      };
+    }
+
+    const invoiceRef = db
+      .collection(COLLECTIONS.invoices)
+      .doc(oldPayment.invoiceId);
+    const invoiceSnap = await transaction.get(invoiceRef);
+
+    if (!invoiceSnap.exists) {
+      throw new AppError("Invoice tidak ditemukan.", 404, "INVOICE_NOT_FOUND");
+    }
+
+    const invoice = normalizeInvoiceDocument(
+      invoiceSnap.id,
+      invoiceSnap.data() ?? {},
+    );
+
+    if (invoice.deletedAt) {
+      throw new AppError("Invoice sudah dihapus.", 404, "INVOICE_DELETED");
+    }
+
+    const confirmedPaymentsSnap = await transaction.get(
+      db
+        .collection(COLLECTIONS.payments)
+        .where("invoiceId", "==", oldPayment.invoiceId)
+        .where("status", "==", "CONFIRMED"),
+    );
+
+    const nextPaidAmount = confirmedPaymentsSnap.docs
+      .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
+      .filter((payment) => payment.deletedAt === null)
+      .filter((payment) => payment.id !== oldPayment?.id)
+      .reduce((total, payment) => total + payment.amount, 0);
+
+    const remainingAmount = invoice.totalAmount - nextPaidAmount;
+    const nextStatus =
+      nextPaidAmount >= invoice.totalAmount && invoice.totalAmount > 0
+        ? "PAID"
+        : invoice.status === "PAID"
+          ? "ISSUED"
+          : invoice.status;
+
+    transaction.update(paymentRef, {
+      status: "CANCELLED",
+      updatedAt: serverTimestamp(),
+    });
+
+    transaction.update(invoiceRef, {
+      paidAmount: nextPaidAmount,
+      remainingAmount,
+      status: nextStatus,
+      paidAt:
+        nextStatus === "PAID"
+          ? invoice.paidAt
+            ? Timestamp.fromDate(invoice.paidAt)
+            : serverTimestamp()
+          : null,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      oldPayment,
+      nextPaidAmount,
+      changed: true,
+    };
+  });
+
+  if (!auditData.changed) {
+    return auditData.oldPayment;
   }
-
-  await getDb().collection(COLLECTIONS.payments).doc(id).update({
-    status: "CANCELLED",
-    updatedAt: serverTimestamp(),
-  });
-
-  const nextPaidAmount = await sumConfirmedPaymentsForInvoice(
-    oldPayment.invoiceId,
-    oldPayment.id,
-  );
-
-  await syncInvoicePaymentState({
-    invoiceId: oldPayment.invoiceId,
-    paidAmount: nextPaidAmount,
-  });
 
   await writeAuditLog({
     user: actor,
@@ -506,12 +616,12 @@ export async function cancelPaymentService({
     entityId: id,
     entityType: "payment",
     oldValue: {
-      status: oldPayment.status,
-      amount: oldPayment.amount,
+      status: auditData.oldPayment.status,
+      amount: auditData.oldPayment.amount,
     },
     newValue: {
       status: "CANCELLED",
-      nextPaidAmount,
+      nextPaidAmount: auditData.nextPaidAmount,
     },
   });
 
@@ -522,22 +632,87 @@ export async function deletePaymentService({
   actor,
   id,
 }: PaymentIdParams): Promise<PaymentDetail> {
-  const oldPayment = await getPaymentByIdService(id);
+  const db = getDb();
+  const paymentRef = db.collection(COLLECTIONS.payments).doc(id);
 
-  await getDb().collection(COLLECTIONS.payments).doc(id).update({
-    status: "CANCELLED",
-    deletedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const auditData = await db.runTransaction(async (transaction) => {
+    const paymentSnap = await transaction.get(paymentRef);
 
-  const nextPaidAmount = await sumConfirmedPaymentsForInvoice(
-    oldPayment.invoiceId,
-    oldPayment.id,
-  );
+    if (!paymentSnap.exists) {
+      throw new AppError("Payment tidak ditemukan.", 404, "PAYMENT_NOT_FOUND");
+    }
 
-  await syncInvoicePaymentState({
-    invoiceId: oldPayment.invoiceId,
-    paidAmount: nextPaidAmount,
+    const oldPayment = normalizePaymentDocument(
+      paymentSnap.id,
+      paymentSnap.data() ?? {},
+    );
+
+    if (oldPayment.deletedAt) {
+      throw new AppError("Payment sudah dihapus.", 404, "PAYMENT_DELETED");
+    }
+
+    const invoiceRef = db
+      .collection(COLLECTIONS.invoices)
+      .doc(oldPayment.invoiceId);
+    const invoiceSnap = await transaction.get(invoiceRef);
+
+    if (!invoiceSnap.exists) {
+      throw new AppError("Invoice tidak ditemukan.", 404, "INVOICE_NOT_FOUND");
+    }
+
+    const invoice = normalizeInvoiceDocument(
+      invoiceSnap.id,
+      invoiceSnap.data() ?? {},
+    );
+
+    if (invoice.deletedAt) {
+      throw new AppError("Invoice sudah dihapus.", 404, "INVOICE_DELETED");
+    }
+
+    const confirmedPaymentsSnap = await transaction.get(
+      db
+        .collection(COLLECTIONS.payments)
+        .where("invoiceId", "==", oldPayment.invoiceId)
+        .where("status", "==", "CONFIRMED"),
+    );
+
+    const nextPaidAmount = confirmedPaymentsSnap.docs
+      .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
+      .filter((payment) => payment.deletedAt === null)
+      .filter((payment) => payment.id !== oldPayment?.id)
+      .reduce((total, payment) => total + payment.amount, 0);
+
+    const remainingAmount = invoice.totalAmount - nextPaidAmount;
+    const nextStatus =
+      nextPaidAmount >= invoice.totalAmount && invoice.totalAmount > 0
+        ? "PAID"
+        : invoice.status === "PAID"
+          ? "ISSUED"
+          : invoice.status;
+
+    transaction.update(paymentRef, {
+      status: "CANCELLED",
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    transaction.update(invoiceRef, {
+      paidAmount: nextPaidAmount,
+      remainingAmount,
+      status: nextStatus,
+      paidAt:
+        nextStatus === "PAID"
+          ? invoice.paidAt
+            ? Timestamp.fromDate(invoice.paidAt)
+            : serverTimestamp()
+          : null,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      oldPayment,
+      nextPaidAmount,
+    };
   });
 
   await writeAuditLog({
@@ -547,19 +722,19 @@ export async function deletePaymentService({
     entityId: id,
     entityType: "payment",
     oldValue: {
-      status: oldPayment.status,
-      amount: oldPayment.amount,
-      deletedAt: oldPayment.deletedAt,
+      status: auditData.oldPayment.status,
+      amount: auditData.oldPayment.amount,
+      deletedAt: auditData.oldPayment.deletedAt,
     },
     newValue: {
       status: "CANCELLED",
       deletedAt: "SERVER_TIMESTAMP",
-      nextPaidAmount,
+      nextPaidAmount: auditData.nextPaidAmount,
     },
   });
 
   return {
-    ...oldPayment,
+    ...auditData.oldPayment,
     status: "CANCELLED",
     deletedAt: new Date(),
   };

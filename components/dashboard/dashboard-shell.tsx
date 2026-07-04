@@ -22,7 +22,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  UserRound,
   Users,
   UsersRound,
   X,
@@ -30,6 +29,7 @@ import {
 import { useMemo, useState, useTransition } from "react";
 
 import type { CurrentUser } from "@/types/auth";
+import type { PermissionSlug } from "@/constants/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -43,7 +43,8 @@ type NavigationItem = {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  group: "Command" | "Operations" | "Finance" | "System";
+  group: "Overview" | "Operations" | "Finance" | "System";
+  permissions: PermissionSlug[];
 };
 
 const navigationItems: NavigationItem[] = [
@@ -51,19 +52,22 @@ const navigationItems: NavigationItem[] = [
     label: "Dashboard",
     href: "/dashboard",
     icon: Home,
-    group: "Command",
+    group: "Overview",
+    permissions: [],
   },
   {
     label: "Reports",
     href: "/reports",
     icon: BarChart3,
-    group: "Command",
+    group: "Overview",
+    permissions: ["report.dashboard.read"],
   },
   {
     label: "Audit Logs",
     href: "/audit-logs",
     icon: History,
-    group: "Command",
+    group: "Overview",
+    permissions: ["audit_log.read", "audit_log.read_all"],
   },
 
   {
@@ -71,48 +75,60 @@ const navigationItems: NavigationItem[] = [
     href: "/employees",
     icon: UsersRound,
     group: "Operations",
+    permissions: ["employee.read", "employee.read_all", "employee.read_own"],
   },
   {
     label: "Leave Requests",
-    href: "/leave-requests",
+    href: "/hr/leave-requests",
     icon: CalendarCheck2,
     group: "Operations",
+    permissions: ["leave.read", "leave.read_all", "leave.read_own"],
   },
   {
     label: "Attendance",
-    href: "/attendance",
+    href: "/hr/attendance",
     icon: ClipboardList,
     group: "Operations",
+    permissions: [
+      "attendance.read",
+      "attendance.read_all",
+      "attendance.read_own",
+    ],
   },
   {
     label: "Clients",
     href: "/clients",
     icon: Building2,
     group: "Operations",
+    permissions: ["client.read", "client.read_all"],
   },
   {
     label: "Projects",
     href: "/projects",
     icon: Briefcase,
     group: "Operations",
+    permissions: ["project.read", "project.read_all", "project.read_assigned"],
   },
   {
     label: "Project Members",
-    href: "/project-members",
+    href: "/projects/members",
     icon: Users,
     group: "Operations",
+    permissions: ["project_member.read"],
   },
   {
     label: "Milestones",
-    href: "/milestones",
+    href: "/projects/milestones",
     icon: Flag,
     group: "Operations",
+    permissions: ["milestone.read", "milestone.read_assigned"],
   },
   {
     label: "Tasks",
-    href: "/tasks",
+    href: "/projects/tasks",
     icon: LayoutDashboard,
     group: "Operations",
+    permissions: ["task.read", "task.read_all", "task.read_assigned"],
   },
 
   {
@@ -120,24 +136,28 @@ const navigationItems: NavigationItem[] = [
     href: "/finance",
     icon: Landmark,
     group: "Finance",
+    permissions: ["finance.dashboard.read"],
   },
   {
     label: "Invoices",
     href: "/invoices",
     icon: FileText,
     group: "Finance",
+    permissions: ["invoice.read", "invoice.read_all", "invoice.read_project"],
   },
   {
     label: "Payments",
     href: "/payments",
     icon: CreditCard,
     group: "Finance",
+    permissions: ["payment.read", "payment.read_all"],
   },
   {
     label: "Expenses",
     href: "/expenses",
     icon: Receipt,
     group: "Finance",
+    permissions: ["expense.read", "expense.read_all", "expense.read_own"],
   },
 
   {
@@ -145,23 +165,26 @@ const navigationItems: NavigationItem[] = [
     href: "/settings/company",
     icon: Settings,
     group: "System",
+    permissions: ["setting.company.read", "setting.system.read"],
   },
   {
     label: "Users",
-    href: "/users",
+    href: "/settings/users",
     icon: Users,
     group: "System",
+    permissions: ["user.read"],
   },
   {
     label: "Roles",
     href: "/settings/roles",
     icon: ShieldCheck,
     group: "System",
+    permissions: ["role.read"],
   },
 ];
 
 const navigationGroups: NavigationItem["group"][] = [
-  "Command",
+  "Overview",
   "Operations",
   "Finance",
   "System",
@@ -243,6 +266,19 @@ function getRoleLabel(user: CurrentUser | null | undefined) {
   return "USER";
 }
 
+function canSeeNavigationItem(
+  user: CurrentUser | null | undefined,
+  item: NavigationItem,
+) {
+  if (item.permissions.length === 0) {
+    return true;
+  }
+
+  return item.permissions.some((permission) =>
+    user?.permissions.includes(permission),
+  );
+}
+
 function SidebarContent({
   pathname,
   activeUser,
@@ -260,6 +296,9 @@ function SidebarContent({
   const displayName = getDisplayName(activeUser);
   const roleLabel = getRoleLabel(activeUser);
   const status = activeUser?.status ?? "ACTIVE";
+  const visibleNavigationItems = navigationItems.filter((item) =>
+    canSeeNavigationItem(activeUser, item),
+  );
 
   return (
     <aside className="flex h-full flex-col bg-slate-950 text-slate-100">
@@ -270,17 +309,17 @@ function SidebarContent({
           onClick={onNavigate}
           className="group flex items-center gap-3"
         >
-          <div className="relative flex size-11 items-center justify-center rounded-2xl border border-lime-300/25 bg-lime-300/12 text-lime-200 shadow-[0_0_40px_rgba(190,242,100,0.16)]">
+          <div className="relative flex size-11 items-center justify-center rounded-lg border border-lime-300/25 bg-lime-300/12 text-lime-200 shadow-[0_0_32px_rgba(190,242,100,0.14)]">
             <Sparkles className="size-5" />
             <span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-slate-950 bg-lime-300" />
           </div>
 
           <div>
-            <p className="font-display text-lg font-black leading-none tracking-[-0.04em] text-white">
+            <p className="font-display text-lg font-black leading-none text-white">
               NEXTY ERP
             </p>
             <p className="mt-1 text-[0.68rem] font-bold uppercase tracking-[0.2em] text-lime-200/70">
-              Command OS
+              Operations Suite
             </p>
           </div>
         </Link>
@@ -290,8 +329,12 @@ function SidebarContent({
         <nav className="space-y-6">
           {navigationGroups.map((group) => {
             const items = navigationItems.filter(
-              (item) => item.group === group,
+              (item) => item.group === group && visibleNavigationItems.includes(item),
             );
+
+            if (items.length === 0) {
+              return null;
+            }
 
             return (
               <div key={group}>
@@ -311,7 +354,7 @@ function SidebarContent({
                         prefetch={false}
                         onClick={onNavigate}
                         className={classNames(
-                          "group relative flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition",
+                          "group relative flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
                           active
                             ? "bg-lime-300 text-slate-950 shadow-[0_12px_30px_rgba(190,242,100,0.18)]"
                             : "text-slate-300 hover:bg-white/8 hover:text-white",
@@ -320,7 +363,7 @@ function SidebarContent({
                         <span className="flex min-w-0 items-center gap-3">
                           <span
                             className={classNames(
-                              "flex size-8 shrink-0 items-center justify-center rounded-xl border transition",
+                              "flex size-8 shrink-0 items-center justify-center rounded-md border transition",
                               active
                                 ? "border-slate-950/10 bg-slate-950 text-lime-200"
                                 : "border-white/10 bg-white/5 text-slate-400 group-hover:text-white",
@@ -345,9 +388,9 @@ function SidebarContent({
       </div>
 
       <div className="border-t border-white/10 p-3">
-        <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.06] p-3">
+        <div className="rounded-lg border border-white/10 bg-white/[0.06] p-3">
           <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-lime-300 text-sm font-black text-slate-950">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-lime-300 text-sm font-black text-slate-950">
               {getInitials(email)}
             </div>
 
@@ -377,7 +420,7 @@ function SidebarContent({
             variant="outline"
             disabled={isLoggingOut}
             onClick={onLogout}
-            className="mt-4 h-10 w-full justify-center gap-2 rounded-2xl border-white/10 bg-white/5 text-slate-100 hover:bg-red-500/15 hover:text-red-100"
+            className="mt-4 h-10 w-full justify-center gap-2 rounded-lg border-white/10 bg-white/5 text-slate-100 hover:bg-red-500/15 hover:text-red-100"
           >
             <LogOut className="size-4" />
             {isLoggingOut ? "Logging out..." : "Logout"}
@@ -463,7 +506,7 @@ export function DashboardShell({
                 type="button"
                 variant="outline"
                 size="icon"
-                className="rounded-2xl lg:hidden"
+                className="rounded-lg lg:hidden"
                 onClick={() => setMobileOpen(true)}
               >
                 {mobileOpen ? (
@@ -480,7 +523,7 @@ export function DashboardShell({
                     {currentSection.group}
                   </p>
                 </div>
-                <h1 className="truncate font-display text-xl font-black tracking-[-0.05em] md:text-2xl">
+                <h1 className="truncate font-display text-xl font-black md:text-2xl">
                   {currentSection.label}
                 </h1>
               </div>
@@ -494,8 +537,8 @@ export function DashboardShell({
                 Session Active
               </Badge>
 
-              <div className="hidden items-center gap-3 rounded-2xl border bg-card/75 px-3 py-2 shadow-sm md:flex">
-                <div className="flex size-8 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-lime-200">
+              <div className="hidden items-center gap-3 rounded-lg border bg-card/75 px-3 py-2 shadow-sm md:flex">
+                <div className="flex size-8 items-center justify-center rounded-md bg-slate-950 text-xs font-black text-lime-200">
                   {getInitials(activeUser?.email ?? "NX")}
                 </div>
                 <div className="min-w-0">
@@ -514,7 +557,7 @@ export function DashboardShell({
                 size="icon"
                 disabled={isLoggingOut}
                 onClick={handleLogout}
-                className="rounded-2xl"
+                className="rounded-lg"
                 title="Logout"
               >
                 <LogOut className="size-4" />

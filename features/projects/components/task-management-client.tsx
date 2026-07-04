@@ -2,17 +2,32 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, Edit, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  ClipboardList,
+  Edit,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Save,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import {
+  createTaskCommentAction,
   createTaskAction,
+  deleteTaskCommentAction,
+  listTaskCommentsAction,
   deleteTaskAction,
+  updateTaskCommentAction,
   updateTaskAction,
 } from "@/features/projects/actions";
 import type { MilestoneListItem } from "@/types/milestone";
 import type { ProjectListItem } from "@/types/project";
 import type { ProjectMemberListItem } from "@/types/project-member";
 import type { TaskListItem, TaskPriority, TaskStatus } from "@/types/task";
+import type { TaskCommentListItem } from "@/types/task-comment";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +55,14 @@ type TaskManagementClientProps = {
   projects: ProjectListItem[];
   milestones: MilestoneListItem[];
   members: ProjectMemberListItem[];
+  commentPermissions: {
+    canRead: boolean;
+    canCreate: boolean;
+    canUpdateOwn: boolean;
+    canDeleteOwn: boolean;
+    canDeleteAny: boolean;
+    currentUserId: string;
+  };
 };
 
 type TaskFormState = {
@@ -135,14 +158,23 @@ export function TaskManagementClient({
   projects,
   milestones,
   members,
+  commentPermissions,
 }: TaskManagementClientProps) {
   const router = useRouter();
 
   const [isPending, startTransition] = useTransition();
+  const [isCommentPending, startCommentTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openCommentDialog, setOpenCommentDialog] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<TaskFormState>(initialForm);
+  const [selectedCommentTask, setSelectedCommentTask] =
+    useState<TaskListItem | null>(null);
+  const [comments, setComments] = useState<TaskCommentListItem[]>([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentBody, setEditingCommentBody] = useState("");
 
   const activeProjects = useMemo(() => {
     return projects
@@ -333,6 +365,142 @@ export function TaskManagementClient({
         router.refresh();
       }
     });
+  }
+
+  function openComments(task: TaskListItem) {
+    setSelectedCommentTask(task);
+    setOpenCommentDialog(true);
+    setComments([]);
+    setCommentBody("");
+    setEditingCommentId(null);
+    setEditingCommentBody("");
+    setMessage(null);
+
+    startCommentTransition(async () => {
+      const result = await listTaskCommentsAction({
+        taskId: task.id,
+      });
+
+      if (result.success) {
+        setComments(result.data);
+        return;
+      }
+
+      setMessage(result.message);
+    });
+  }
+
+  function refreshComments(taskId: string) {
+    startCommentTransition(async () => {
+      const result = await listTaskCommentsAction({
+        taskId,
+      });
+
+      if (result.success) {
+        setComments(result.data);
+        return;
+      }
+
+      setMessage(result.message);
+    });
+  }
+
+  function handleCreateComment() {
+    if (!selectedCommentTask) {
+      return;
+    }
+
+    setMessage(null);
+
+    startCommentTransition(async () => {
+      const result = await createTaskCommentAction({
+        taskId: selectedCommentTask.id,
+        body: commentBody,
+      });
+
+      setMessage(result.message);
+
+      if (result.success) {
+        setCommentBody("");
+        refreshComments(selectedCommentTask.id);
+        router.refresh();
+      }
+    });
+  }
+
+  function startEditComment(comment: TaskCommentListItem) {
+    setEditingCommentId(comment.id);
+    setEditingCommentBody(comment.body);
+  }
+
+  function cancelEditComment() {
+    setEditingCommentId(null);
+    setEditingCommentBody("");
+  }
+
+  function handleUpdateComment(commentId: string) {
+    if (!selectedCommentTask) {
+      return;
+    }
+
+    setMessage(null);
+
+    startCommentTransition(async () => {
+      const result = await updateTaskCommentAction({
+        id: commentId,
+        body: editingCommentBody,
+      });
+
+      setMessage(result.message);
+
+      if (result.success) {
+        cancelEditComment();
+        refreshComments(selectedCommentTask.id);
+        router.refresh();
+      }
+    });
+  }
+
+  function handleDeleteComment(comment: TaskCommentListItem) {
+    if (!selectedCommentTask) {
+      return;
+    }
+
+    const confirmed = window.confirm("Yakin ingin menghapus komentar ini?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setMessage(null);
+
+    startCommentTransition(async () => {
+      const result = await deleteTaskCommentAction({
+        id: comment.id,
+      });
+
+      setMessage(result.message);
+
+      if (result.success) {
+        refreshComments(selectedCommentTask.id);
+        router.refresh();
+      }
+    });
+  }
+
+  function canEditComment(comment: TaskCommentListItem) {
+    return (
+      commentPermissions.canUpdateOwn &&
+      comment.userId === commentPermissions.currentUserId
+    );
+  }
+
+  function canDeleteComment(comment: TaskCommentListItem) {
+    return (
+      commentPermissions.canDeleteAny ||
+      (commentPermissions.canDeleteOwn &&
+        comment.userId === commentPermissions.currentUserId)
+    );
   }
 
   const canCreateTask = activeProjects.length > 0;
@@ -604,6 +772,150 @@ export function TaskManagementClient({
         </Dialog>
       </div>
 
+      <Dialog open={openCommentDialog} onOpenChange={setOpenCommentDialog}>
+        <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 py-5">
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="size-5" />
+              Task Comments
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedCommentTask
+                ? `${selectedCommentTask.projectCode} - ${selectedCommentTask.title}`
+                : "Diskusi task"}
+            </p>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            {isCommentPending && comments.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Memuat komentar...
+              </div>
+            ) : null}
+
+            {!isCommentPending && comments.length === 0 ? (
+              <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+                Belum ada komentar untuk task ini.
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              {comments.map((comment) => {
+                const isEditing = editingCommentId === comment.id;
+
+                return (
+                  <div
+                    key={comment.id}
+                    className="rounded-lg border bg-background p-4"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-semibold">{comment.userName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {comment.userEmail} - {formatDate(comment.createdAt)}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {canEditComment(comment) ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isCommentPending}
+                            onClick={() => startEditComment(comment)}
+                          >
+                            <Edit className="size-4" />
+                          </Button>
+                        ) : null}
+
+                        {canDeleteComment(comment) ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={isCommentPending}
+                            onClick={() => handleDeleteComment(comment)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {isEditing ? (
+                      <div className="mt-3 space-y-3">
+                        <Textarea
+                          value={editingCommentBody}
+                          onChange={(event) =>
+                            setEditingCommentBody(event.target.value)
+                          }
+                          rows={3}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isCommentPending}
+                            onClick={cancelEditComment}
+                          >
+                            <X className="size-4" />
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isCommentPending}
+                            onClick={() => handleUpdateComment(comment.id)}
+                          >
+                            <Save className="size-4" />
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6">
+                        {comment.body}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {commentPermissions.canCreate && selectedCommentTask ? (
+            <div className="border-t bg-background px-6 py-4">
+              <div className="grid gap-3">
+                <Textarea
+                  value={commentBody}
+                  onChange={(event) => setCommentBody(event.target.value)}
+                  placeholder="Tulis update, catatan QA, blocker, atau keputusan task..."
+                  rows={3}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    className="gap-2"
+                    disabled={isCommentPending || commentBody.trim().length < 2}
+                    onClick={handleCreateComment}
+                  >
+                    {isCommentPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                    Send Comment
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       {message ? (
         <div className="rounded-xl border bg-muted/50 px-4 py-3 text-sm">
           {message}
@@ -638,7 +950,7 @@ export function TaskManagementClient({
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Due</TableHead>
-                  <TableHead className="w-[160px]">Actions</TableHead>
+                  <TableHead className="w-[200px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -688,6 +1000,18 @@ export function TaskManagementClient({
 
                     <TableCell>
                       <div className="flex gap-2">
+                        {commentPermissions.canRead ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openComments(task)}
+                            disabled={isPending}
+                            title="Open comments"
+                          >
+                            <MessageSquare className="size-4" />
+                          </Button>
+                        ) : null}
+
                         <Button
                           size="sm"
                           variant="outline"

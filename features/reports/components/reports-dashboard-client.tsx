@@ -7,7 +7,6 @@ import {
   Briefcase,
   Building2,
   CheckCircle2,
-  ClipboardList,
   FileText,
   Receipt,
   RotateCcw,

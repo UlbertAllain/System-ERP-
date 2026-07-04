@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { ExpenseDetail, ExpenseListItem } from "@/types/expense";
 import {
@@ -44,13 +47,28 @@ export async function listExpensesAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "expense.read");
+    requireAnyPermission(auth.user, [
+      "expense.read",
+      "expense.read_all",
+      "expense.read_own",
+    ]);
 
     const expenses = await listExpensesService({
       projectId: payload.projectId,
       status: payload.status,
       category: payload.category,
     });
+
+    if (
+      auth.user.permissions.includes("expense.read_own") &&
+      !auth.user.permissions.includes("expense.read") &&
+      !auth.user.permissions.includes("expense.read_all")
+    ) {
+      return successResponse(
+        "Expenses berhasil dimuat.",
+        expenses.filter((expense) => expense.createdByUserId === auth.user.uid),
+      );
+    }
 
     return successResponse("Expenses berhasil dimuat.", expenses);
   } catch (error) {
@@ -66,9 +84,25 @@ export async function getExpenseByIdAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "expense.read");
+    requireAnyPermission(auth.user, [
+      "expense.read",
+      "expense.read_all",
+      "expense.read_own",
+    ]);
 
     const expense = await getExpenseByIdService(payload.id);
+
+    if (
+      auth.user.permissions.includes("expense.read_own") &&
+      !auth.user.permissions.includes("expense.read") &&
+      !auth.user.permissions.includes("expense.read_all") &&
+      expense.createdByUserId !== auth.user.uid
+    ) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk expense ini.",
+      };
+    }
 
     return successResponse("Expense berhasil dimuat.", expense);
   } catch (error) {
@@ -107,7 +141,21 @@ export async function updateExpenseAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "expense.update");
+    requireAnyPermission(auth.user, ["expense.update", "expense.update_own"]);
+
+    if (
+      auth.user.permissions.includes("expense.update_own") &&
+      !auth.user.permissions.includes("expense.update")
+    ) {
+      const expense = await getExpenseByIdService(payload.id);
+
+      if (expense.createdByUserId !== auth.user.uid) {
+        return {
+          success: false,
+          message: "Akses ditolak untuk update expense ini.",
+        };
+      }
+    }
 
     const expense = await updateExpenseService({
       actor: auth.user,

@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { TaskDetail, TaskListItem } from "@/types/task";
 import {
@@ -24,6 +27,11 @@ import {
   type TaskIdInput,
   type UpdateTaskInput,
 } from "@/features/projects/schemas/task-schema";
+import {
+  canAccessProjectForMutation,
+  canAccessTask,
+  filterTasksForUser,
+} from "@/features/projects/actions/project-access-scope";
 
 function revalidateTaskPaths() {
   revalidatePath("/projects");
@@ -39,15 +47,20 @@ export async function listTasksAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "task.read");
+    requireAnyPermission(auth.user, [
+      "task.read",
+      "task.read_all",
+      "task.read_assigned",
+    ]);
 
     const tasks = await listTasksService({
       projectId: payload.projectId,
       milestoneId: payload.milestoneId,
       assigneeEmployeeId: payload.assigneeEmployeeId,
     });
+    const scopedTasks = await filterTasksForUser(auth.user, tasks);
 
-    return successResponse("Tasks berhasil dimuat.", tasks);
+    return successResponse("Tasks berhasil dimuat.", scopedTasks);
   } catch (error) {
     return handleActionError(error);
   }
@@ -61,9 +74,20 @@ export async function getTaskByIdAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "task.read");
+    requireAnyPermission(auth.user, [
+      "task.read",
+      "task.read_all",
+      "task.read_assigned",
+    ]);
 
     const task = await getTaskByIdService(payload.id);
+
+    if (!(await canAccessTask(auth.user, task))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk task ini.",
+      };
+    }
 
     return successResponse("Task berhasil dimuat.", task);
   } catch (error) {
@@ -80,6 +104,13 @@ export async function createTaskAction(
     const auth = await createSessionAuthContext();
 
     requirePermission(auth.user, "task.create");
+
+    if (!(await canAccessProjectForMutation(auth.user, payload.projectId))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk membuat task pada project ini.",
+      };
+    }
 
     const task = await createTaskService({
       actor: auth.user,
@@ -102,7 +133,21 @@ export async function updateTaskAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "task.update");
+    requireAnyPermission(auth.user, ["task.update", "task.update_assigned"]);
+
+    if (
+      auth.user.permissions.includes("task.update_assigned") &&
+      !auth.user.permissions.includes("task.update")
+    ) {
+      const task = await getTaskByIdService(payload.id);
+
+      if (!(await canAccessTask(auth.user, task))) {
+        return {
+          success: false,
+          message: "Akses ditolak untuk update task ini.",
+        };
+      }
+    }
 
     const task = await updateTaskService({
       actor: auth.user,

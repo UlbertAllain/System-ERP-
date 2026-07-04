@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Building2, ImageIcon, Loader2, Save, Upload } from "lucide-react";
+import { Building2, ImageIcon, Loader2, Save } from "lucide-react";
 
 import {
   updateCompanyLogoAction,
@@ -223,7 +223,7 @@ export function CompanySettingClient({ setting }: CompanySettingClientProps) {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border bg-muted/40">
+            <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-muted/40">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

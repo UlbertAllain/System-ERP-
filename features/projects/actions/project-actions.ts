@@ -28,6 +28,10 @@ import {
   type ProjectIdInput,
   type UpdateProjectInput,
 } from "@/features/projects/schemas/project-schema";
+import {
+  canAccessProject,
+  filterProjectsForUser,
+} from "@/features/projects/actions/project-access-scope";
 
 function revalidateProjectPaths() {
   revalidatePath("/projects");
@@ -41,11 +45,16 @@ export async function listProjectsAction(
 
     const auth = await createSessionAuthContext();
 
-    requireAnyPermission(auth.user, ["project.read", "project.read_all"]);
+    requireAnyPermission(auth.user, [
+      "project.read",
+      "project.read_all",
+      "project.read_assigned",
+    ]);
 
     const projects = await listProjectsService();
+    const scopedProjects = await filterProjectsForUser(auth.user, projects);
 
-    return successResponse("Projects berhasil dimuat.", projects);
+    return successResponse("Projects berhasil dimuat.", scopedProjects);
   } catch (error) {
     return handleActionError(error);
   }
@@ -59,9 +68,20 @@ export async function getProjectByIdAction(
 
     const auth = await createSessionAuthContext();
 
-    requireAnyPermission(auth.user, ["project.read", "project.read_all"]);
+    requireAnyPermission(auth.user, [
+      "project.read",
+      "project.read_all",
+      "project.read_assigned",
+    ]);
 
     const project = await getProjectByIdService(payload.id);
+
+    if (!(await canAccessProject(auth.user, project.id))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk project ini.",
+      };
+    }
 
     return successResponse("Project berhasil dimuat.", project);
   } catch (error) {
@@ -100,7 +120,21 @@ export async function updateProjectAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "project.update");
+    requireAnyPermission(auth.user, [
+      "project.update",
+      "project.update_assigned",
+    ]);
+
+    if (
+      auth.user.permissions.includes("project.update_assigned") &&
+      !auth.user.permissions.includes("project.update") &&
+      !(await canAccessProject(auth.user, payload.id))
+    ) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk update project ini.",
+      };
+    }
 
     const project = await updateProjectService({
       actor: auth.user,

@@ -9,7 +9,11 @@ import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function TasksPage() {
-  await requireAnyPagePermission(["task.read"]);
+  const currentUser = await requireAnyPagePermission([
+    "task.read",
+    "task.read_all",
+    "task.read_assigned",
+  ]);
 
   const [tasksResult, projectsResult, milestonesResult, membersResult] =
     await Promise.all([
@@ -77,6 +81,14 @@ export default async function TasksPage() {
       projects={projectsResult.data}
       milestones={milestonesResult.data}
       members={membersResult.data}
+      commentPermissions={{
+        canRead: currentUser.permissions.includes("task_comment.read"),
+        canCreate: currentUser.permissions.includes("task_comment.create"),
+        canUpdateOwn: currentUser.permissions.includes("task_comment.update_own"),
+        canDeleteOwn: currentUser.permissions.includes("task_comment.delete_own"),
+        canDeleteAny: currentUser.permissions.includes("task_comment.delete_any"),
+        currentUserId: currentUser.uid,
+      }}
     />
   );
 }

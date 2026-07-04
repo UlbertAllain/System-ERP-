@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { PaymentDetail, PaymentListItem } from "@/types/payment";
 import {
@@ -40,7 +43,7 @@ export async function listPaymentsAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "payment.read");
+    requireAnyPermission(auth.user, ["payment.read", "payment.read_all"]);
 
     const payments = await listPaymentsService({
       invoiceId: payload.invoiceId,
@@ -63,7 +66,7 @@ export async function getPaymentByIdAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "payment.read");
+    requireAnyPermission(auth.user, ["payment.read", "payment.read_all"]);
 
     const payment = await getPaymentByIdService(payload.id);
 

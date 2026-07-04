@@ -4,7 +4,6 @@ import { Timestamp, type DocumentData } from "firebase-admin/firestore";
 
 import {
   COLLECTIONS,
-  createDocumentId,
   getDb,
   serverTimestamp,
 } from "@/lib/firebase/firestore";

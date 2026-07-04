@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import { requireAnyPermission, requirePermission } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { CompanySetting } from "@/types/company-setting";
 import {
@@ -34,7 +34,10 @@ export async function getCompanySettingAction(): Promise<
   try {
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "setting.system.read");
+    requireAnyPermission(auth.user, [
+      "setting.system.read",
+      "setting.company.read",
+    ]);
 
     const setting = await getCompanySettingService();
 

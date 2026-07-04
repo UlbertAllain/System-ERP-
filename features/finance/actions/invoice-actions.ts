@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { InvoiceDetail, InvoiceListItem } from "@/types/invoice";
 import {
@@ -29,6 +32,7 @@ import {
   type MarkInvoicePaidInput,
   type UpdateInvoiceInput,
 } from "@/features/finance/schemas/invoice-schema";
+import { getAssignedProjectIdsForUser } from "@/features/projects/actions/project-access-scope";
 
 function revalidateInvoicePaths() {
   revalidatePath("/invoices");
@@ -43,13 +47,33 @@ export async function listInvoicesAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "invoice.read");
+    requireAnyPermission(auth.user, [
+      "invoice.read",
+      "invoice.read_all",
+      "invoice.read_project",
+    ]);
 
     const invoices = await listInvoicesService({
       clientId: payload.clientId,
       projectId: payload.projectId,
       status: payload.status,
     });
+
+    if (
+      auth.user.permissions.includes("invoice.read_project") &&
+      !auth.user.permissions.includes("invoice.read") &&
+      !auth.user.permissions.includes("invoice.read_all")
+    ) {
+      const assignedProjectIds = await getAssignedProjectIdsForUser(auth.user);
+
+      return successResponse(
+        "Invoices berhasil dimuat.",
+        invoices.filter(
+          (invoice) =>
+            invoice.projectId !== null && assignedProjectIds.has(invoice.projectId),
+        ),
+      );
+    }
 
     return successResponse("Invoices berhasil dimuat.", invoices);
   } catch (error) {
@@ -65,9 +89,28 @@ export async function getInvoiceByIdAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "invoice.read");
+    requireAnyPermission(auth.user, [
+      "invoice.read",
+      "invoice.read_all",
+      "invoice.read_project",
+    ]);
 
     const invoice = await getInvoiceByIdService(payload.id);
+
+    if (
+      auth.user.permissions.includes("invoice.read_project") &&
+      !auth.user.permissions.includes("invoice.read") &&
+      !auth.user.permissions.includes("invoice.read_all")
+    ) {
+      const assignedProjectIds = await getAssignedProjectIdsForUser(auth.user);
+
+      if (!invoice.projectId || !assignedProjectIds.has(invoice.projectId)) {
+        return {
+          success: false,
+          message: "Akses ditolak untuk invoice ini.",
+        };
+      }
+    }
 
     return successResponse("Invoice berhasil dimuat.", invoice);
   } catch (error) {

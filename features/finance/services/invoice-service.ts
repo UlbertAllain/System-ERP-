@@ -249,9 +249,11 @@ function normalizeInvoiceDocument(
 }
 
 function toInvoiceListItem(invoice: InvoiceDetail): InvoiceListItem {
-  const { lineItems: _lineItems, ...listItem } = invoice;
+  const listItem = { ...invoice };
 
-  return listItem;
+  delete (listItem as Partial<InvoiceDetail>).lineItems;
+
+  return listItem as InvoiceListItem;
 }
 
 async function assertInvoiceNumberUnique(

@@ -58,7 +58,7 @@ export function StatsCard({
           </div>
         </div>
 
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-500/10 text-lime-600 transition duration-300 group-hover:scale-110">
+        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-lime-500/10 text-lime-600 transition duration-300 group-hover:scale-110">
           {icon}
         </div>
       </div>

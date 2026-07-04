@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
-import { requirePermission } from "@/lib/permissions/guard";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { MilestoneDetail, MilestoneListItem } from "@/types/milestone";
 import {
@@ -24,6 +27,11 @@ import {
   type MilestoneIdInput,
   type UpdateMilestoneInput,
 } from "@/features/projects/schemas/milestone-schema";
+import {
+  canAccessProjectForMutation,
+  canAccessMilestone,
+  filterMilestonesForUser,
+} from "@/features/projects/actions/project-access-scope";
 
 function revalidateMilestonePaths() {
   revalidatePath("/projects");
@@ -38,13 +46,20 @@ export async function listMilestonesAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "milestone.read");
+    requireAnyPermission(auth.user, [
+      "milestone.read",
+      "milestone.read_assigned",
+    ]);
 
     const milestones = await listMilestonesService({
       projectId: payload.projectId,
     });
+    const scopedMilestones = await filterMilestonesForUser(
+      auth.user,
+      milestones,
+    );
 
-    return successResponse("Milestones berhasil dimuat.", milestones);
+    return successResponse("Milestones berhasil dimuat.", scopedMilestones);
   } catch (error) {
     return handleActionError(error);
   }
@@ -58,9 +73,19 @@ export async function getMilestoneByIdAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "milestone.read");
+    requireAnyPermission(auth.user, [
+      "milestone.read",
+      "milestone.read_assigned",
+    ]);
 
     const milestone = await getMilestoneByIdService(payload.id);
+
+    if (!(await canAccessMilestone(auth.user, milestone))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk milestone ini.",
+      };
+    }
 
     return successResponse("Milestone berhasil dimuat.", milestone);
   } catch (error) {
@@ -77,6 +102,13 @@ export async function createMilestoneAction(
     const auth = await createSessionAuthContext();
 
     requirePermission(auth.user, "milestone.create");
+
+    if (!(await canAccessProjectForMutation(auth.user, payload.projectId))) {
+      return {
+        success: false,
+        message: "Akses ditolak untuk membuat milestone pada project ini.",
+      };
+    }
 
     const milestone = await createMilestoneService({
       actor: auth.user,
@@ -99,7 +131,24 @@ export async function updateMilestoneAction(
 
     const auth = await createSessionAuthContext();
 
-    requirePermission(auth.user, "milestone.update");
+    requireAnyPermission(auth.user, [
+      "milestone.update",
+      "milestone.update_assigned",
+    ]);
+
+    if (
+      auth.user.permissions.includes("milestone.update_assigned") &&
+      !auth.user.permissions.includes("milestone.update")
+    ) {
+      const milestone = await getMilestoneByIdService(payload.id);
+
+      if (!(await canAccessMilestone(auth.user, milestone))) {
+        return {
+          success: false,
+          message: "Akses ditolak untuk update milestone ini.",
+        };
+      }
+    }
 
     const milestone = await updateMilestoneService({
       actor: auth.user,

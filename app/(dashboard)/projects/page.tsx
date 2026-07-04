@@ -6,7 +6,11 @@ import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ProjectsPage() {
-  await requireAnyPagePermission(["project.read", "project.read_all"]);
+  await requireAnyPagePermission([
+    "project.read",
+    "project.read_all",
+    "project.read_assigned",
+  ]);
 
   const [projectsResult, clientsResult, employeesResult] = await Promise.all([
     listProjectsAction({}),

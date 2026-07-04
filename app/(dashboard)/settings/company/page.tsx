@@ -4,7 +4,10 @@ import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function CompanySettingsPage() {
-  await requireAnyPagePermission(["setting.system.read"]);
+  await requireAnyPagePermission([
+    "setting.system.read",
+    "setting.company.read",
+  ]);
 
   const settingResult = await getCompanySettingAction();
 

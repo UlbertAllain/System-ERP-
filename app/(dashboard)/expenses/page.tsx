@@ -6,7 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCompanySettingAction } from "@/features/settings/actions";
 
 export default async function ExpensesPage() {
-  await requireAnyPagePermission(["expense.read"]);
+  await requireAnyPagePermission([
+    "expense.read",
+    "expense.read_all",
+    "expense.read_own",
+  ]);
 
   const [expensesResult, projectsResult, companySettingResult] =
     await Promise.all([

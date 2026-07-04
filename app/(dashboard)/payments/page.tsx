@@ -7,7 +7,7 @@ import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function PaymentsPage() {
-  await requireAnyPagePermission(["payment.read"]);
+  await requireAnyPagePermission(["payment.read", "payment.read_all"]);
 
   const [paymentsResult, invoicesResult] = await Promise.all([
     listPaymentsAction({}),
