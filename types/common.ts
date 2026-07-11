@@ -3,6 +3,14 @@ export type ImageAsset = {
   publicId: string;
 };
 
+export type PaginatedResult<T> = {
+  items: T[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type SoftDeleteFields = {
   deletedAt: Date | null;
 };

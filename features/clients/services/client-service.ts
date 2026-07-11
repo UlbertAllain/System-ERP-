@@ -3,6 +3,7 @@ import "server-only";
 import type { DocumentData } from "firebase-admin/firestore";
 import { deleteCloudinaryImage } from "@/lib/cloudinary/server";
 import type { ImageAsset } from "@/types/common";
+import type { PaginatedResult } from "@/types/common";
 import {
   COLLECTIONS,
   createDocumentId,
@@ -44,6 +45,13 @@ type ClientIdParams = {
   id: string;
 };
 
+type ListClientsPaginatedParams = {
+  search?: string;
+  status?: ClientStatus;
+  page: number;
+  pageSize: number;
+};
+
 function timestampToDate(value: unknown): Date | null {
   if (
     value &&
@@ -59,6 +67,14 @@ function timestampToDate(value: unknown): Date | null {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function normalizeSearchText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ")
+    .trim()
+    .toLowerCase();
 }
 
 function normalizeNullableString(
@@ -141,6 +157,69 @@ export async function listClientsService(): Promise<ClientListItem[]> {
     .filter((client) => client.deletedAt === null);
 }
 
+export async function listClientsPaginatedService({
+  search,
+  status,
+  page,
+  pageSize,
+}: ListClientsPaginatedParams): Promise<PaginatedResult<ClientListItem>> {
+  const normalizedSearch = search?.trim().toLowerCase();
+  const collection = getDb().collection(COLLECTIONS.clients);
+  const offset = (page - 1) * pageSize;
+
+  if (normalizedSearch) {
+    const querySnap = await collection
+      .orderBy("searchText")
+      .startAt(normalizedSearch)
+      .endAt(`${normalizedSearch}\uf8ff`)
+      .get();
+
+    const matchedClients = querySnap.docs
+      .map((doc) => normalizeClientDocument(doc.id, doc.data()))
+      .filter((client) => client.deletedAt === null)
+      .filter((client) => (status ? client.status === status : true));
+    const totalItems = matchedClients.length;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+
+    return {
+      items: matchedClients.slice(offset, offset + pageSize),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  let baseQuery: FirebaseFirestore.Query = collection.where(
+    "deletedAt",
+    "==",
+    null,
+  );
+
+  if (status) {
+    baseQuery = baseQuery.where("status", "==", status);
+  }
+
+  const countSnap = await baseQuery.count().get();
+  const totalItems = countSnap.data().count;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const querySnap = await baseQuery
+    .orderBy("createdAt", "desc")
+    .offset(offset)
+    .limit(pageSize)
+    .get();
+
+  return {
+    items: querySnap.docs.map((doc) =>
+      normalizeClientDocument(doc.id, doc.data()),
+    ),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
 export async function getClientByIdService(id: string): Promise<ClientDetail> {
   const client = await getClientDocumentOrThrow(id);
 
@@ -180,6 +259,7 @@ export async function createClientService({
       address: normalizeNullableString(address),
       logo: null,
       status: "ACTIVE",
+      searchText: normalizeSearchText(name, email, company, phone),
       notes: normalizeNullableString(notes),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -233,6 +313,7 @@ export async function updateClientService({
       website: normalizeNullableString(website),
       address: normalizeNullableString(address),
       status,
+      searchText: normalizeSearchText(name, email, company, phone),
       notes: normalizeNullableString(notes),
       updatedAt: serverTimestamp(),
     });

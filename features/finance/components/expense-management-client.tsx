@@ -1,13 +1,17 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Edit,
+  FilterX,
   Loader2,
   Plus,
   Receipt,
+  Search,
   Send,
   Trash2,
   Wallet,
@@ -23,7 +27,11 @@ import {
   submitExpenseAction,
   updateExpenseAction,
 } from "@/features/finance/actions";
-import type { ExpenseCategory, ExpenseListItem } from "@/types/expense";
+import type {
+  ExpenseCategory,
+  ExpenseListItem,
+  ExpenseStatus,
+} from "@/types/expense";
 import type { ProjectListItem } from "@/types/project";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +60,16 @@ type ExpenseManagementClientProps = {
   expenses: ExpenseListItem[];
   projects: ProjectListItem[];
   companySetting: CompanySetting;
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    status: string;
+    category: string;
+    projectId: string;
+  };
 };
 
 type ExpenseFormState = {
@@ -77,6 +95,14 @@ const expenseCategories: ExpenseCategory[] = [
   "SALARY",
   "TAX",
   "OTHER",
+];
+
+const expenseStatuses: ExpenseStatus[] = [
+  "DRAFT",
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+  "PAID",
 ];
 
 const initialForm: ExpenseFormState = {
@@ -163,14 +189,21 @@ export function ExpenseManagementClient({
   expenses,
   projects,
   companySetting,
+  pagination,
 }: ExpenseManagementClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<ExpenseFormState>(initialForm);
+  const [search, setSearch] = useState(pagination.search);
+  const [status, setStatus] = useState(pagination.status);
+  const [category, setCategory] = useState(pagination.category);
+  const [projectId, setProjectId] = useState(pagination.projectId);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   const activeProjects = useMemo(() => {
     return projects
@@ -179,13 +212,67 @@ export function ExpenseManagementClient({
   }, [projects]);
 
   const sortedExpenses = useMemo(() => {
-    return [...expenses].sort((a, b) => {
-      const aTime = a.expenseDate?.getTime() ?? 0;
-      const bTime = b.expenseDate?.getTime() ?? 0;
-
-      return bTime - aTime;
-    });
+    return expenses;
   }, [expenses]);
+
+  function updateQuery(next: {
+    search?: string;
+    status?: string;
+    category?: string;
+    projectId?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextStatus = next.status ?? status;
+    const nextCategory = next.category ?? category;
+    const nextProjectId = next.projectId ?? projectId;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    if (nextCategory) {
+      params.set("category", nextCategory);
+    }
+
+    if (nextProjectId) {
+      params.set("projectId", nextProjectId);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setStatus("");
+    setCategory("");
+    setProjectId("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   function resetForm() {
     setForm({
@@ -599,6 +686,88 @@ export function ExpenseManagementClient({
         </CardHeader>
 
         <CardContent>
+          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_150px_170px_220px_120px_auto_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleApplyFilters();
+                  }
+                }}
+                placeholder="Search expense, vendor, project"
+                className="pl-9"
+              />
+            </div>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">All status</option>
+              {expenseStatuses.map((expenseStatus) => (
+                <option key={expenseStatus} value={expenseStatus}>
+                  {expenseStatus}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              <option value="">All categories</option>
+              {expenseCategories.map((expenseCategory) => (
+                <option key={expenseCategory} value={expenseCategory}>
+                  {expenseCategory}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              <option value="">All projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.projectCode} - {project.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(event.target.value);
+                updateQuery({
+                  page: 1,
+                  pageSize: event.target.value,
+                });
+              }}
+            >
+              <option value="10">10 rows</option>
+              <option value="20">20 rows</option>
+              <option value="50">50 rows</option>
+            </select>
+
+            <Button type="button" variant="outline" onClick={handleApplyFilters}>
+              <Search className="size-4" />
+              Apply
+            </Button>
+
+            <Button type="button" variant="ghost" onClick={handleResetFilters}>
+              <FilterX className="size-4" />
+              Reset
+            </Button>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -737,6 +906,40 @@ export function ExpenseManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <p>
+              Showing {expenses.length} of {pagination.totalItems} expenses
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Prev
+              </Button>
+
+              <span>
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

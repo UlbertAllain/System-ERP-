@@ -61,13 +61,26 @@ Target berikutnya bukan menambah halaman sebanyak mungkin, tetapi menaikkan kual
 - Mengganti dashboard utama dari hero MVP menjadi dashboard KPI role-aware yang hanya mengambil data sesuai permission user.
 - Mengurangi styling editorial: radius default diperkecil, background radial dihapus, negative letter spacing utama dinetralkan, dan shell copy diganti menjadi bahasa operasional.
 - Mengimplementasikan Task Comments: type, schema, service, Server Actions, audit log, permission guard, task access scope, dan dialog komentar di Task Management.
+- Menambahkan fondasi paginated table untuk Clients: action paginated terpisah, service dengan page/pageSize/status/search, URL-driven filters, dan pagination controls.
+- Menambahkan paginated table untuk Projects: action paginated terpisah, service dengan page/pageSize/status/priority/search, assigned-project scoping, URL-driven filters, dan pagination controls.
+- Menambahkan paginated table untuk Tasks: action paginated terpisah, service dengan page/pageSize/project/status/priority/search, assigned-task scoping, URL-driven filters, dan pagination controls.
+- Menambahkan paginated table untuk Invoices: action paginated terpisah, service dengan page/pageSize/client/project/status/search, `invoice.read_project` scoping tanpa membocorkan total global, URL-driven filters, dan pagination controls.
+- Menambahkan paginated table untuk Payments: action paginated terpisah, service dengan page/pageSize/client/project/status/method/search, URL-driven filters, dan pagination controls.
+- Menambahkan paginated table untuk Expenses: action paginated terpisah, service dengan page/pageSize/project/status/category/search, `expense.read_own` scoping tanpa membocorkan total global, URL-driven filters, dan pagination controls.
+- Menambahkan paginated table untuk Audit Logs: action paginated terpisah, service dengan page/pageSize/module/action/user/search, URL-driven filters, pagination controls, dan audit log baru menyimpan `userEmail` serta `searchText`.
+- Menambahkan paginated table untuk Users: action paginated terpisah, service dengan page/pageSize/status/role/search, URL-driven filters, pagination controls, dan user baru/terupdate menyimpan `searchText`.
 
 ## Prioritas Berikutnya
 
-1. Tambahkan pagination/filter/search server-side untuk tabel besar.
-2. Implement reset password admin flow dan audit trail-nya.
-3. Tambahkan export CSV/PDF untuk finance, reports, dan audit logs.
-4. Tambahkan notification center untuk approval, due date, invoice overdue, leave request, dan assigned task.
-5. Buat approval workflow reusable untuk expense, leave, milestone, invoice issue/void, dan payment refund.
-6. Tambahkan test minimal untuk authorization boundary dan finance transaction.
-7. Audit Firestore indexes dan rules sesuai query final.
+1. Implement reset password admin flow dan audit trail-nya.
+2. Tambahkan export CSV/PDF untuk finance, reports, dan audit logs.
+3. Tambahkan notification center untuk approval, due date, invoice overdue, leave request, dan assigned task.
+4. Buat approval workflow reusable untuk expense, leave, milestone, invoice issue/void, dan payment refund.
+5. Tambahkan test minimal untuk authorization boundary dan finance transaction.
+6. Audit Firestore indexes dan rules sesuai query final.
+
+## Catatan Teknis Terbuka
+
+- Search paginated Clients/Projects/Tasks/Invoices/Payments/Expenses/Audit Logs/Users bergantung pada field `searchText`; data lama perlu backfill lewat update/migration agar searchable penuh.
+- Query paginated baru memakai kombinasi `deletedAt`, `createdAt`, `paymentDate`, `expenseDate`, `status`, `method`, `category`, `module`, `action`, `userId`, `roleSlugs`, `clientId`, `projectId`, dan `searchText`; Firestore composite indexes perlu dibuat sesuai error runtime/index suggestion Firebase.
+- Status invoice `OVERDUE` sudah ada di tipe dan filter, tetapi belum ada job/logic yang otomatis menandai overdue berdasarkan due date.

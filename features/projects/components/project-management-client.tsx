@@ -1,8 +1,18 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Edit, FolderKanban, Loader2, Plus, Trash2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  FilterX,
+  FolderKanban,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import {
   createProjectAction,
@@ -43,6 +53,15 @@ type ProjectManagementClientProps = {
   projects: ProjectListItem[];
   clients: ClientListItem[];
   employees: EmployeeListItem[];
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    status: string;
+    priority: string;
+  };
 };
 
 type ProjectFormState = {
@@ -161,14 +180,20 @@ export function ProjectManagementClient({
   projects,
   clients,
   employees,
+  pagination,
 }: ProjectManagementClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<ProjectFormState>(initialForm);
+  const [search, setSearch] = useState(pagination.search);
+  const [status, setStatus] = useState(pagination.status);
+  const [priority, setPriority] = useState(pagination.priority);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   const activeClients = useMemo(() => {
     return clients
@@ -183,10 +208,60 @@ export function ProjectManagementClient({
   }, [employees]);
 
   const sortedProjects = useMemo(() => {
-    return [...projects].sort((a, b) =>
-      a.projectCode.localeCompare(b.projectCode),
-    );
+    return projects;
   }, [projects]);
+
+  function updateQuery(next: {
+    search?: string;
+    status?: string;
+    priority?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextStatus = next.status ?? status;
+    const nextPriority = next.priority ?? priority;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    if (nextPriority) {
+      params.set("priority", nextPriority);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setStatus("");
+    setPriority("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   function resetForm() {
     setForm({
@@ -639,6 +714,72 @@ export function ProjectManagementClient({
         </div>
       ) : null}
 
+      <Card>
+        <CardContent className="grid gap-3 p-4 xl:grid-cols-[1fr_180px_180px_140px_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleApplyFilters();
+                }
+              }}
+              placeholder="Search code, project, client, PIC"
+              className="pl-9"
+            />
+          </div>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <option value="">All status</option>
+            {projectStatuses.map((projectStatus) => (
+              <option key={projectStatus} value={projectStatus}>
+                {projectStatus}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={priority}
+            onChange={(event) => setPriority(event.target.value)}
+          >
+            <option value="">All priority</option>
+            {projectPriorities.map((projectPriority) => (
+              <option key={projectPriority} value={projectPriority}>
+                {projectPriority}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={pageSize}
+            onChange={(event) => setPageSize(event.target.value)}
+          >
+            {[10, 20, 50, 100].map((size) => (
+              <option key={size} value={String(size)}>
+                {size} / page
+              </option>
+            ))}
+          </select>
+
+          <Button type="button" onClick={handleApplyFilters}>
+            Apply
+          </Button>
+
+          <Button type="button" variant="outline" onClick={handleResetFilters}>
+            <FilterX className="size-4" />
+            Reset
+          </Button>
+        </CardContent>
+      </Card>
+
       {!canCreateProject ? (
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
@@ -650,10 +791,16 @@ export function ProjectManagementClient({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FolderKanban className="size-5" />
-            Projects
-          </CardTitle>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FolderKanban className="size-5" />
+              Projects
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {pagination.totalItems} records - page {pagination.page} of{" "}
+              {pagination.totalPages}
+            </p>
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -775,6 +922,35 @@ export function ProjectManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {sortedProjects.length} of {pagination.totalItems} projects
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

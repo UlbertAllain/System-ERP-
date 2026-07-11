@@ -8,6 +8,10 @@ export function hasPermission(
   user: CurrentUser,
   permission: PermissionSlug,
 ): boolean {
+  if (user.roleSlugs.includes("super_admin")) {
+    return true;
+  }
+
   return user.permissions.includes(permission);
 }
 

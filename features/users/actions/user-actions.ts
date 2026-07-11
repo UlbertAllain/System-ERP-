@@ -6,11 +6,13 @@ import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
 import { requirePermission } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
+import type { PaginatedResult } from "@/types/common";
 import type { UserDetail, UserListItem } from "@/types/user";
 import {
   activateUserService,
   createInternalUserService,
   getUserByIdService,
+  listUsersPaginatedService,
   listUsersService,
   softDeleteUserService,
   suspendUserService,
@@ -43,6 +45,30 @@ export async function listUsersAction(
     requirePermission(auth.user, "user.read");
 
     const users = await listUsersService();
+
+    return successResponse("Users berhasil dimuat.", users);
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function listUsersPaginatedAction(
+  input: ListUsersInput = {},
+): Promise<ActionResponse<PaginatedResult<UserListItem>>> {
+  try {
+    const payload = listUsersSchema.parse(input);
+
+    const auth = await createSessionAuthContext();
+
+    requirePermission(auth.user, "user.read");
+
+    const users = await listUsersPaginatedService({
+      search: payload.search,
+      status: payload.status,
+      roleSlug: payload.roleSlug,
+      page: payload.page,
+      pageSize: payload.pageSize,
+    });
 
     return successResponse("Users berhasil dimuat.", users);
   } catch (error) {

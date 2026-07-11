@@ -11,6 +11,7 @@ import {
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { AppError } from "@/lib/errors/app-error";
 import type { CurrentUser } from "@/types/auth";
+import type { PaginatedResult } from "@/types/common";
 import type {
   InvoiceDetail,
   InvoiceLineItem,
@@ -60,6 +61,12 @@ type ListInvoicesParams = {
   status?: InvoiceStatus;
 };
 
+type ListInvoicesPaginatedParams = ListInvoicesParams & {
+  search?: string;
+  page: number;
+  pageSize: number;
+};
+
 type ClientSnapshot = {
   id: string;
   name: string;
@@ -106,6 +113,14 @@ function normalizeNullableString(
 
 function normalizeInvoiceNumber(invoiceNumber: string): string {
   return invoiceNumber.trim().toUpperCase();
+}
+
+function normalizeSearchText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ")
+    .trim()
+    .toLowerCase();
 }
 
 function dateStringToTimestamp(value: string): Timestamp {
@@ -409,6 +424,86 @@ export async function listInvoicesService({
     .sort((a, b) => b.invoiceNumber.localeCompare(a.invoiceNumber));
 }
 
+export async function listInvoicesPaginatedService({
+  search,
+  clientId,
+  projectId,
+  status,
+  page,
+  pageSize,
+}: ListInvoicesPaginatedParams): Promise<PaginatedResult<InvoiceListItem>> {
+  const normalizedSearch = search?.trim().toLowerCase();
+  const collection = getDb().collection(COLLECTIONS.invoices);
+  const offset = (page - 1) * pageSize;
+
+  if (normalizedSearch) {
+    const querySnap = await collection
+      .orderBy("searchText")
+      .startAt(normalizedSearch)
+      .endAt(`${normalizedSearch}\uf8ff`)
+      .get();
+
+    const matchedInvoices = querySnap.docs
+      .map((doc) => normalizeInvoiceDocument(doc.id, doc.data()))
+      .filter((invoice) => invoice.deletedAt === null)
+      .filter((invoice) => {
+        if (clientId && invoice.clientId !== clientId) return false;
+        if (projectId && invoice.projectId !== projectId) return false;
+        if (status && invoice.status !== status) return false;
+
+        return true;
+      })
+      .map(toInvoiceListItem);
+    const totalItems = matchedInvoices.length;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+
+    return {
+      items: matchedInvoices.slice(offset, offset + pageSize),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  let baseQuery: FirebaseFirestore.Query = collection.where(
+    "deletedAt",
+    "==",
+    null,
+  );
+
+  if (clientId) {
+    baseQuery = baseQuery.where("clientId", "==", clientId);
+  }
+
+  if (projectId) {
+    baseQuery = baseQuery.where("projectId", "==", projectId);
+  }
+
+  if (status) {
+    baseQuery = baseQuery.where("status", "==", status);
+  }
+
+  const countSnap = await baseQuery.count().get();
+  const totalItems = countSnap.data().count;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const querySnap = await baseQuery
+    .orderBy("createdAt", "desc")
+    .offset(offset)
+    .limit(pageSize)
+    .get();
+
+  return {
+    items: querySnap.docs.map((doc) =>
+      toInvoiceListItem(normalizeInvoiceDocument(doc.id, doc.data())),
+    ),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
 export async function getInvoiceByIdService(
   id: string,
 ): Promise<InvoiceDetail> {
@@ -472,6 +567,13 @@ export async function createInvoiceService({
       projectId: project?.id ?? null,
       projectName: project?.name ?? null,
       projectCode: project?.projectCode ?? null,
+      searchText: normalizeSearchText(
+        normalizedInvoiceNumber,
+        client.name,
+        client.company,
+        project?.name,
+        project?.projectCode,
+      ),
 
       status,
 
@@ -576,6 +678,13 @@ export async function updateInvoiceService({
       projectId: project?.id ?? null,
       projectName: project?.name ?? null,
       projectCode: project?.projectCode ?? null,
+      searchText: normalizeSearchText(
+        normalizedInvoiceNumber,
+        client.name,
+        client.company,
+        project?.name,
+        project?.projectCode,
+      ),
 
       status: nextStatus,
 

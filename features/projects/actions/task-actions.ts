@@ -9,11 +9,13 @@ import {
   requirePermission,
 } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
+import type { PaginatedResult } from "@/types/common";
 import type { TaskDetail, TaskListItem } from "@/types/task";
 import {
   createTaskService,
   deleteTaskService,
   getTaskByIdService,
+  listTasksPaginatedService,
   listTasksService,
   updateTaskService,
 } from "@/features/projects/services/task-service";
@@ -31,6 +33,7 @@ import {
   canAccessProjectForMutation,
   canAccessTask,
   filterTasksForUser,
+  userHasOnlyAssignedTaskRead,
 } from "@/features/projects/actions/project-access-scope";
 
 function revalidateTaskPaths() {
@@ -40,10 +43,10 @@ function revalidateTaskPaths() {
 }
 
 export async function listTasksAction(
-  input: ListTasksInput = {},
+  input: Partial<ListTasksInput> = {},
 ): Promise<ActionResponse<TaskListItem[]>> {
   try {
-    const payload = listTasksSchema.parse(input);
+    const payload = listTasksSchema.partial().parse(input);
 
     const auth = await createSessionAuthContext();
 
@@ -61,6 +64,112 @@ export async function listTasksAction(
     const scopedTasks = await filterTasksForUser(auth.user, tasks);
 
     return successResponse("Tasks berhasil dimuat.", scopedTasks);
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+function paginateTasks(
+  tasks: TaskListItem[],
+  page: number,
+  pageSize: number,
+): PaginatedResult<TaskListItem> {
+  const totalItems = tasks.length;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const offset = (page - 1) * pageSize;
+
+  return {
+    items: tasks.slice(offset, offset + pageSize),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
+function filterTasksByInput(tasks: TaskListItem[], input: ListTasksInput) {
+  const search = input.search?.trim().toLowerCase();
+
+  return tasks.filter((task) => {
+    if (input.projectId && task.projectId !== input.projectId) {
+      return false;
+    }
+
+    if (input.milestoneId && task.milestoneId !== input.milestoneId) {
+      return false;
+    }
+
+    if (
+      input.assigneeEmployeeId &&
+      task.assigneeEmployeeId !== input.assigneeEmployeeId
+    ) {
+      return false;
+    }
+
+    if (input.status && task.status !== input.status) {
+      return false;
+    }
+
+    if (input.priority && task.priority !== input.priority) {
+      return false;
+    }
+
+    if (!search) {
+      return true;
+    }
+
+    const haystack = [
+      task.title,
+      task.projectCode,
+      task.projectName,
+      task.milestoneTitle,
+      task.assigneeName,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(search);
+  });
+}
+
+export async function listTasksPaginatedAction(
+  input: Partial<ListTasksInput> = {},
+): Promise<ActionResponse<PaginatedResult<TaskListItem>>> {
+  try {
+    const payload = listTasksSchema.parse(input);
+
+    const auth = await createSessionAuthContext();
+
+    requireAnyPermission(auth.user, [
+      "task.read",
+      "task.read_all",
+      "task.read_assigned",
+    ]);
+
+    if (userHasOnlyAssignedTaskRead(auth.user)) {
+      const tasks = await listTasksService({});
+      const scopedTasks = await filterTasksForUser(auth.user, tasks);
+      const filteredTasks = filterTasksByInput(scopedTasks, payload);
+
+      return successResponse(
+        "Tasks berhasil dimuat.",
+        paginateTasks(filteredTasks, payload.page, payload.pageSize),
+      );
+    }
+
+    const tasks = await listTasksPaginatedService({
+      projectId: payload.projectId,
+      milestoneId: payload.milestoneId,
+      assigneeEmployeeId: payload.assigneeEmployeeId,
+      search: payload.search,
+      status: payload.status,
+      priority: payload.priority,
+      page: payload.page,
+      pageSize: payload.pageSize,
+    });
+
+    return successResponse("Tasks berhasil dimuat.", tasks);
   } catch (error) {
     return handleActionError(error);
   }

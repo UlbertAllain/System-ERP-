@@ -48,6 +48,11 @@ export const listTasksSchema = z.object({
   projectId: z.string().min(1, "Project ID wajib diisi.").optional(),
   milestoneId: z.string().min(1, "Milestone ID wajib diisi.").optional(),
   assigneeEmployeeId: z.string().min(1, "Employee ID wajib diisi.").optional(),
+  search: z.string().trim().max(180).optional(),
+  status: taskStatusSchema.optional(),
+  priority: taskPrioritySchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(10),
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;

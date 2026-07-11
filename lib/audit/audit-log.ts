@@ -28,10 +28,24 @@ export async function writeAuditLog(input: AuditLogInput): Promise<void> {
       id: auditLogId,
       userId: input.user?.uid ?? null,
       userName: input.user?.name ?? null,
+      userEmail: input.user?.email ?? null,
       action: input.action,
       module: input.module,
       entityId: input.entityId ?? null,
       entityType: input.entityType ?? null,
+      searchText: [
+        input.user?.name,
+        input.user?.email,
+        input.user?.uid,
+        input.action,
+        input.module,
+        input.entityType,
+        input.entityId,
+      ]
+        .filter((value): value is string => Boolean(value?.trim()))
+        .join(" ")
+        .trim()
+        .toLowerCase(),
       oldValue: input.oldValue ?? null,
       newValue: input.newValue ?? null,
       ipAddress: input.ipAddress ?? null,

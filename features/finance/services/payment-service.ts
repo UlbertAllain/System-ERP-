@@ -11,6 +11,7 @@ import {
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { AppError } from "@/lib/errors/app-error";
 import type { CurrentUser } from "@/types/auth";
+import type { PaginatedResult } from "@/types/common";
 import type {
   PaymentDetail,
   PaymentListItem,
@@ -48,7 +49,14 @@ type ListPaymentsParams = {
   invoiceId?: string;
   clientId?: string;
   projectId?: string;
+  method?: PaymentMethod;
   status?: PaymentStatus;
+};
+
+type ListPaymentsPaginatedParams = ListPaymentsParams & {
+  search?: string;
+  page: number;
+  pageSize: number;
 };
 
 function timestampToDate(value: unknown): Date | null {
@@ -70,6 +78,14 @@ function normalizeNullableString(
   const trimmed = value?.trim();
 
   return trimmed ? trimmed : null;
+}
+
+function normalizeSearchText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ")
+    .trim()
+    .toLowerCase();
 }
 
 function dateStringToTimestamp(value: string): Timestamp {
@@ -168,6 +184,7 @@ export async function listPaymentsService({
   invoiceId,
   clientId,
   projectId,
+  method,
   status,
 }: ListPaymentsParams = {}): Promise<PaymentListItem[]> {
   const baseQuery = getDb().collection(COLLECTIONS.payments);
@@ -180,6 +197,8 @@ export async function listPaymentsService({
     querySnap = await baseQuery.where("clientId", "==", clientId).get();
   } else if (projectId) {
     querySnap = await baseQuery.where("projectId", "==", projectId).get();
+  } else if (method) {
+    querySnap = await baseQuery.where("method", "==", method).get();
   } else if (status) {
     querySnap = await baseQuery.where("status", "==", status).get();
   } else {
@@ -193,6 +212,7 @@ export async function listPaymentsService({
       if (invoiceId && payment.invoiceId !== invoiceId) return false;
       if (clientId && payment.clientId !== clientId) return false;
       if (projectId && payment.projectId !== projectId) return false;
+      if (method && payment.method !== method) return false;
       if (status && payment.status !== status) return false;
 
       return true;
@@ -203,6 +223,97 @@ export async function listPaymentsService({
 
       return bTime - aTime;
     });
+}
+
+export async function listPaymentsPaginatedService({
+  search,
+  invoiceId,
+  clientId,
+  projectId,
+  method,
+  status,
+  page,
+  pageSize,
+}: ListPaymentsPaginatedParams): Promise<PaginatedResult<PaymentListItem>> {
+  const normalizedSearch = search?.trim().toLowerCase();
+  const collection = getDb().collection(COLLECTIONS.payments);
+  const offset = (page - 1) * pageSize;
+
+  if (normalizedSearch) {
+    const querySnap = await collection
+      .orderBy("searchText")
+      .startAt(normalizedSearch)
+      .endAt(`${normalizedSearch}\uf8ff`)
+      .get();
+
+    const matchedPayments = querySnap.docs
+      .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
+      .filter((payment) => payment.deletedAt === null)
+      .filter((payment) => {
+        if (invoiceId && payment.invoiceId !== invoiceId) return false;
+        if (clientId && payment.clientId !== clientId) return false;
+        if (projectId && payment.projectId !== projectId) return false;
+        if (method && payment.method !== method) return false;
+        if (status && payment.status !== status) return false;
+
+        return true;
+      });
+    const totalItems = matchedPayments.length;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+
+    return {
+      items: matchedPayments.slice(offset, offset + pageSize),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  let baseQuery: FirebaseFirestore.Query = collection.where(
+    "deletedAt",
+    "==",
+    null,
+  );
+
+  if (invoiceId) {
+    baseQuery = baseQuery.where("invoiceId", "==", invoiceId);
+  }
+
+  if (clientId) {
+    baseQuery = baseQuery.where("clientId", "==", clientId);
+  }
+
+  if (projectId) {
+    baseQuery = baseQuery.where("projectId", "==", projectId);
+  }
+
+  if (method) {
+    baseQuery = baseQuery.where("method", "==", method);
+  }
+
+  if (status) {
+    baseQuery = baseQuery.where("status", "==", status);
+  }
+
+  const countSnap = await baseQuery.count().get();
+  const totalItems = countSnap.data().count;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const querySnap = await baseQuery
+    .orderBy("paymentDate", "desc")
+    .offset(offset)
+    .limit(pageSize)
+    .get();
+
+  return {
+    items: querySnap.docs.map((doc) =>
+      normalizePaymentDocument(doc.id, doc.data()),
+    ),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
+  };
 }
 
 export async function getPaymentByIdService(
@@ -313,6 +424,15 @@ export async function createPaymentService({
       status: "CONFIRMED",
       referenceNumber: normalizeNullableString(referenceNumber),
       notes: normalizeNullableString(notes),
+      searchText: normalizeSearchText(
+        invoice.invoiceNumber,
+        invoice.clientName,
+        invoice.clientCompany,
+        invoice.projectName,
+        invoice.projectCode,
+        method,
+        normalizeNullableString(referenceNumber),
+      ),
 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -466,6 +586,15 @@ export async function updatePaymentService({
       method,
       referenceNumber: normalizeNullableString(referenceNumber),
       notes: normalizeNullableString(notes),
+      searchText: normalizeSearchText(
+        oldPayment.invoiceNumber,
+        oldPayment.clientName,
+        oldPayment.clientCompany,
+        oldPayment.projectName,
+        oldPayment.projectCode,
+        method,
+        normalizeNullableString(referenceNumber),
+      ),
       updatedAt: serverTimestamp(),
     });
 

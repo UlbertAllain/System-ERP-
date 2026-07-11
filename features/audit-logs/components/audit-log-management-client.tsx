@@ -1,7 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Eye, History } from "lucide-react";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FilterX,
+  History,
+  Search,
+} from "lucide-react";
 
 import type { AuditLogListItem } from "@/types/audit-log";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +34,16 @@ import {
 
 type AuditLogManagementClientProps = {
   auditLogs: AuditLogListItem[];
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    module: string;
+    action: string;
+    userId: string;
+  };
 };
 
 function formatDateTime(value: Date | null) {
@@ -52,42 +70,75 @@ function formatJson(value: unknown) {
 
 export function AuditLogManagementClient({
   auditLogs,
+  pagination,
 }: AuditLogManagementClientProps) {
-  const [moduleFilter, setModuleFilter] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
-  const [userFilter, setUserFilter] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const [search, setSearch] = useState(pagination.search);
+  const [moduleFilter, setModuleFilter] = useState(pagination.module);
+  const [actionFilter, setActionFilter] = useState(pagination.action);
+  const [userIdFilter, setUserIdFilter] = useState(pagination.userId);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
   const [selectedLog, setSelectedLog] = useState<AuditLogListItem | null>(null);
 
-  const modules = useMemo(() => {
-    return Array.from(new Set(auditLogs.map((log) => log.module)))
-      .filter(Boolean)
-      .sort();
-  }, [auditLogs]);
+  function updateQuery(next: {
+    search?: string;
+    module?: string;
+    action?: string;
+    userId?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextModule = next.module ?? moduleFilter;
+    const nextAction = next.action ?? actionFilter;
+    const nextUserId = next.userId ?? userIdFilter;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
 
-  const actions = useMemo(() => {
-    return Array.from(new Set(auditLogs.map((log) => log.action)))
-      .filter(Boolean)
-      .sort();
-  }, [auditLogs]);
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
 
-  const filteredLogs = useMemo(() => {
-    return auditLogs.filter((log) => {
-      if (moduleFilter && log.module !== moduleFilter) return false;
-      if (actionFilter && log.action !== actionFilter) return false;
+    if (nextModule.trim()) {
+      params.set("module", nextModule.trim());
+    }
 
-      if (userFilter) {
-        const keyword = userFilter.toLowerCase();
+    if (nextAction.trim()) {
+      params.set("action", nextAction.trim());
+    }
 
-        const matchName = log.userName.toLowerCase().includes(keyword);
-        const matchEmail = log.userEmail?.toLowerCase().includes(keyword);
-        const matchUserId = log.userId.toLowerCase().includes(keyword);
+    if (nextUserId.trim()) {
+      params.set("userId", nextUserId.trim());
+    }
 
-        if (!matchName && !matchEmail && !matchUserId) return false;
-      }
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
 
-      return true;
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
     });
-  }, [actionFilter, auditLogs, moduleFilter, userFilter]);
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setModuleFilter("");
+    setActionFilter("");
+    setUserIdFilter("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -108,49 +159,88 @@ export function AuditLogManagementClient({
         <CardHeader>
           <CardTitle>Filters</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 lg:grid-cols-[minmax(220px,1fr)_160px_180px_180px_120px_auto_auto]">
+          <div className="grid gap-2">
+            <Label htmlFor="search">Search</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleApplyFilters();
+                  }
+                }}
+                placeholder="User, action, module, entity"
+                className="pl-9"
+              />
+            </div>
+          </div>
+
           <div className="grid gap-2">
             <Label htmlFor="moduleFilter">Module</Label>
-            <select
+            <Input
               id="moduleFilter"
-              className="h-10 rounded-md border bg-background px-3 text-sm"
               value={moduleFilter}
               onChange={(event) => setModuleFilter(event.target.value)}
-            >
-              <option value="">All modules</option>
-              {modules.map((module) => (
-                <option key={module} value={module}>
-                  {module}
-                </option>
-              ))}
-            </select>
+              placeholder="invoice"
+            />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="actionFilter">Action</Label>
-            <select
+            <Input
               id="actionFilter"
-              className="h-10 rounded-md border bg-background px-3 text-sm"
               value={actionFilter}
               onChange={(event) => setActionFilter(event.target.value)}
-            >
-              <option value="">All actions</option>
-              {actions.map((action) => (
-                <option key={action} value={action}>
-                  {action}
-                </option>
-              ))}
-            </select>
+              placeholder="INVOICE_CREATED"
+            />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="userFilter">User</Label>
+            <Label htmlFor="userIdFilter">User ID</Label>
             <Input
-              id="userFilter"
-              value={userFilter}
-              onChange={(event) => setUserFilter(event.target.value)}
-              placeholder="Search user name/email/id"
+              id="userIdFilter"
+              value={userIdFilter}
+              onChange={(event) => setUserIdFilter(event.target.value)}
+              placeholder="uid"
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="pageSize">Rows</Label>
+            <select
+              id="pageSize"
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(event.target.value);
+                updateQuery({
+                  page: 1,
+                  pageSize: event.target.value,
+                });
+              }}
+            >
+              <option value="10">10 rows</option>
+              <option value="20">20 rows</option>
+              <option value="50">50 rows</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <Button type="button" variant="outline" onClick={handleApplyFilters}>
+              <Search className="size-4" />
+              Apply
+            </Button>
+          </div>
+
+          <div className="flex items-end">
+            <Button type="button" variant="ghost" onClick={handleResetFilters}>
+              <FilterX className="size-4" />
+              Reset
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -178,7 +268,7 @@ export function AuditLogManagementClient({
               </TableHeader>
 
               <TableBody>
-                {filteredLogs.map((log) => (
+                {auditLogs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="whitespace-nowrap">
                       {formatDateTime(log.createdAt)}
@@ -223,7 +313,7 @@ export function AuditLogManagementClient({
                   </TableRow>
                 ))}
 
-                {filteredLogs.length === 0 ? (
+                {auditLogs.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
@@ -235,6 +325,40 @@ export function AuditLogManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <p>
+              Showing {auditLogs.length} of {pagination.totalItems} logs
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Prev
+              </Button>
+
+              <span>
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

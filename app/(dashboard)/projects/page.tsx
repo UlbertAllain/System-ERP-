@@ -1,19 +1,42 @@
 import { ProjectManagementClient } from "@/features/projects/components/project-management-client";
-import { listProjectsAction } from "@/features/projects/actions";
+import { listProjectsPaginatedAction } from "@/features/projects/actions";
 import { listClientsAction } from "@/features/clients/actions";
 import { listEmployeesAction } from "@/features/employees/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ProjectPriority, ProjectStatus } from "@/types/project";
 
-export default async function ProjectsPage() {
+type ProjectsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function getSearchParam(
+  params: Record<string, string | string[] | undefined>,
+  key: string,
+) {
+  const value = params[key];
+
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
   await requireAnyPagePermission([
     "project.read",
     "project.read_all",
     "project.read_assigned",
   ]);
 
+  const params = (await searchParams) ?? {};
   const [projectsResult, clientsResult, employeesResult] = await Promise.all([
-    listProjectsAction({}),
+    listProjectsPaginatedAction({
+      search: getSearchParam(params, "search"),
+      status: getSearchParam(params, "status") as ProjectStatus | undefined,
+      priority: getSearchParam(params, "priority") as
+        | ProjectPriority
+        | undefined,
+      page: Number(getSearchParam(params, "page") ?? 1),
+      pageSize: Number(getSearchParam(params, "pageSize") ?? 10),
+    }),
     listClientsAction({}),
     listEmployeesAction({}),
   ]);
@@ -59,9 +82,18 @@ export default async function ProjectsPage() {
 
   return (
     <ProjectManagementClient
-      projects={projectsResult.data}
+      projects={projectsResult.data.items}
       clients={clientsResult.data}
       employees={employeesResult.data}
+      pagination={{
+        totalItems: projectsResult.data.totalItems,
+        page: projectsResult.data.page,
+        pageSize: projectsResult.data.pageSize,
+        totalPages: projectsResult.data.totalPages,
+        search: getSearchParam(params, "search") ?? "",
+        status: getSearchParam(params, "status") ?? "",
+        priority: getSearchParam(params, "priority") ?? "",
+      }}
     />
   );
 }

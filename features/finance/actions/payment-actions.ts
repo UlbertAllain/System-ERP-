@@ -9,12 +9,14 @@ import {
   requirePermission,
 } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
+import type { PaginatedResult } from "@/types/common";
 import type { PaymentDetail, PaymentListItem } from "@/types/payment";
 import {
   cancelPaymentService,
   createPaymentService,
   deletePaymentService,
   getPaymentByIdService,
+  listPaymentsPaginatedService,
   listPaymentsService,
   updatePaymentService,
 } from "@/features/finance/services/payment-service";
@@ -49,7 +51,35 @@ export async function listPaymentsAction(
       invoiceId: payload.invoiceId,
       clientId: payload.clientId,
       projectId: payload.projectId,
+      method: payload.method,
       status: payload.status,
+    });
+
+    return successResponse("Payments berhasil dimuat.", payments);
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function listPaymentsPaginatedAction(
+  input: ListPaymentsInput = {},
+): Promise<ActionResponse<PaginatedResult<PaymentListItem>>> {
+  try {
+    const payload = listPaymentsSchema.parse(input);
+
+    const auth = await createSessionAuthContext();
+
+    requireAnyPermission(auth.user, ["payment.read", "payment.read_all"]);
+
+    const payments = await listPaymentsPaginatedService({
+      search: payload.search,
+      invoiceId: payload.invoiceId,
+      clientId: payload.clientId,
+      projectId: payload.projectId,
+      method: payload.method,
+      status: payload.status,
+      page: payload.page,
+      pageSize: payload.pageSize,
     });
 
     return successResponse("Payments berhasil dimuat.", payments);

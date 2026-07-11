@@ -8,7 +8,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
 import { verifyFirebaseIdToken } from "@/lib/auth/verify-token";
 import type { AppUser, CurrentUser } from "@/types/auth";
-import type { PermissionSlug } from "@/constants/permissions";
+import { ALL_PERMISSION_SLUGS, type PermissionSlug } from "@/constants/permissions";
 
 function normalizeFirestoreUser(uid: string, data: DocumentData): AppUser {
   return {
@@ -29,6 +29,16 @@ function normalizeFirestoreUser(uid: string, data: DocumentData): AppUser {
 }
 
 function toCurrentUser(appUser: AppUser): CurrentUser {
+  const permissionSet = new Set<PermissionSlug>(
+    appUser.permissionsCache as PermissionSlug[],
+  );
+
+  if (appUser.roleSlugs.includes("super_admin")) {
+    for (const permission of ALL_PERMISSION_SLUGS) {
+      permissionSet.add(permission);
+    }
+  }
+
   return {
     uid: appUser.uid,
     name: appUser.name,
@@ -38,7 +48,7 @@ function toCurrentUser(appUser: AppUser): CurrentUser {
     employeeId: appUser.employeeId,
     roleIds: appUser.roleIds,
     roleSlugs: appUser.roleSlugs,
-    permissions: appUser.permissionsCache as PermissionSlug[],
+    permissions: Array.from(permissionSet).sort(),
     mustChangePassword: appUser.mustChangePassword,
   };
 }

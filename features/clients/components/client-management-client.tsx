@@ -1,13 +1,17 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
+  ChevronLeft,
+  ChevronRight,
   Edit,
+  FilterX,
   ImageIcon,
   Loader2,
   Plus,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -47,6 +51,14 @@ import {
 
 type ClientManagementClientProps = {
   clients: ClientListItem[];
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    status: string;
+  };
 };
 
 type ClientFormState = {
@@ -94,8 +106,10 @@ function getStatusVariant(status: ClientStatus) {
 
 export function ClientManagementClient({
   clients,
+  pagination,
 }: ClientManagementClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -105,10 +119,58 @@ export function ClientManagementClient({
   const [uploadingClientId, setUploadingClientId] = useState<string | null>(
     null,
   );
+  const [search, setSearch] = useState(pagination.search);
+  const [status, setStatus] = useState(pagination.status);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   const sortedClients = useMemo(() => {
-    return [...clients].sort((a, b) => a.name.localeCompare(b.name));
+    return clients;
   }, [clients]);
+
+  function updateQuery(next: {
+    search?: string;
+    status?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextStatus = next.status ?? status;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setStatus("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   function resetForm() {
     setForm(initialForm);
@@ -460,11 +522,70 @@ export function ClientManagementClient({
       ) : null}
 
       <Card>
+        <CardContent className="grid gap-3 p-4 lg:grid-cols-[1fr_180px_140px_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleApplyFilters();
+                }
+              }}
+              placeholder="Search name, email, company, phone"
+              className="pl-9"
+            />
+          </div>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <option value="">All status</option>
+            {clientStatuses.map((clientStatus) => (
+              <option key={clientStatus} value={clientStatus}>
+                {clientStatus}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={pageSize}
+            onChange={(event) => setPageSize(event.target.value)}
+          >
+            {[10, 20, 50, 100].map((size) => (
+              <option key={size} value={String(size)}>
+                {size} / page
+              </option>
+            ))}
+          </select>
+
+          <Button type="button" onClick={handleApplyFilters}>
+            Apply
+          </Button>
+
+          <Button type="button" variant="outline" onClick={handleResetFilters}>
+            <FilterX className="size-4" />
+            Reset
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="size-5" />
-            Clients
-          </CardTitle>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="size-5" />
+              Clients
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {pagination.totalItems} records - page {pagination.page} of{" "}
+              {pagination.totalPages}
+            </p>
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -605,6 +726,35 @@ export function ClientManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {sortedClients.length} of {pagination.totalItems} clients
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

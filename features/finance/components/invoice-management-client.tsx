@@ -1,14 +1,19 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Edit,
+  FilterX,
   FileText,
   Loader2,
   Plus,
   RefreshCw,
   Save,
+  Search,
   Send,
   Trash2,
   XCircle,
@@ -53,6 +58,16 @@ type InvoiceManagementClientProps = {
   clients: ClientListItem[];
   projects: ProjectListItem[];
   companySetting: CompanySetting;
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    status: string;
+    clientId: string;
+    projectId: string;
+  };
 };
 
 type InvoiceLineItemFormState = {
@@ -205,7 +220,10 @@ export function InvoiceManagementClient({
   clients,
   projects,
   companySetting,
+  pagination,
 }: InvoiceManagementClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -215,6 +233,11 @@ export function InvoiceManagementClient({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPaidDialogOpen, setIsPaidDialogOpen] = useState(false);
   const [paidAmount, setPaidAmount] = useState("");
+  const [search, setSearch] = useState(pagination.search);
+  const [status, setStatus] = useState(pagination.status);
+  const [clientId, setClientId] = useState(pagination.clientId);
+  const [projectId, setProjectId] = useState(pagination.projectId);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   const [form, setForm] = useState<InvoiceFormState>(() =>
     createInitialForm(companySetting),
@@ -242,6 +265,65 @@ export function InvoiceManagementClient({
   }, [form.discountAmount, form.taxAmount, formSubtotal]);
 
   const saving = isPending || isLoadingDetail;
+
+  function updateQuery(next: {
+    search?: string;
+    status?: string;
+    clientId?: string;
+    projectId?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextStatus = next.status ?? status;
+    const nextClientId = next.clientId ?? clientId;
+    const nextProjectId = next.projectId ?? projectId;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    if (nextClientId) {
+      params.set("clientId", nextClientId);
+    }
+
+    if (nextProjectId) {
+      params.set("projectId", nextProjectId);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setStatus("");
+    setClientId("");
+    setProjectId("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   function updateForm<K extends keyof InvoiceFormState>(
     key: K,
@@ -498,6 +580,95 @@ export function InvoiceManagementClient({
         </CardHeader>
 
         <CardContent>
+          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_160px_180px_220px_120px_auto_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleApplyFilters();
+                  }
+                }}
+                placeholder="Search invoice, client, project"
+                className="pl-9"
+              />
+            </div>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">All status</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="ISSUED">ISSUED</option>
+              <option value="PAID">PAID</option>
+              <option value="OVERDUE">OVERDUE</option>
+              <option value="VOID">VOID</option>
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={clientId}
+              onChange={(event) => {
+                setClientId(event.target.value);
+                setProjectId("");
+              }}
+            >
+              <option value="">All clients</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              <option value="">All projects</option>
+              {projects
+                .filter((project) =>
+                  clientId ? project.clientId === clientId : true,
+                )
+                .map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.projectCode} - {project.name}
+                  </option>
+                ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(event.target.value);
+                updateQuery({
+                  page: 1,
+                  pageSize: event.target.value,
+                });
+              }}
+            >
+              <option value="10">10 rows</option>
+              <option value="20">20 rows</option>
+              <option value="50">50 rows</option>
+            </select>
+
+            <Button type="button" variant="outline" onClick={handleApplyFilters}>
+              <Search className="size-4" />
+              Apply
+            </Button>
+
+            <Button type="button" variant="ghost" onClick={handleResetFilters}>
+              <FilterX className="size-4" />
+              Reset
+            </Button>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -627,6 +798,40 @@ export function InvoiceManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <p>
+              Showing {invoices.length} of {pagination.totalItems} invoices
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Prev
+              </Button>
+
+              <span>
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

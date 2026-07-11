@@ -11,6 +11,7 @@ import {
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { AppError } from "@/lib/errors/app-error";
 import type { CurrentUser } from "@/types/auth";
+import type { PaginatedResult } from "@/types/common";
 import type {
   ExpenseCategory,
   ExpenseDetail,
@@ -52,6 +53,12 @@ type ListExpensesParams = {
   category?: ExpenseCategory;
 };
 
+type ListExpensesPaginatedParams = ListExpensesParams & {
+  search?: string;
+  page: number;
+  pageSize: number;
+};
+
 type ProjectSnapshot = {
   id: string;
   name: string;
@@ -81,6 +88,14 @@ function normalizeNullableString(
 
 function normalizeExpenseNumber(expenseNumber: string): string {
   return expenseNumber.trim().toUpperCase();
+}
+
+function normalizeSearchText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ")
+    .trim()
+    .toLowerCase();
 }
 
 function dateStringToTimestamp(value: string): Timestamp {
@@ -247,6 +262,85 @@ export async function listExpensesService({
     });
 }
 
+export async function listExpensesPaginatedService({
+  search,
+  projectId,
+  status,
+  category,
+  page,
+  pageSize,
+}: ListExpensesPaginatedParams): Promise<PaginatedResult<ExpenseListItem>> {
+  const normalizedSearch = search?.trim().toLowerCase();
+  const collection = getDb().collection(COLLECTIONS.expenses);
+  const offset = (page - 1) * pageSize;
+
+  if (normalizedSearch) {
+    const querySnap = await collection
+      .orderBy("searchText")
+      .startAt(normalizedSearch)
+      .endAt(`${normalizedSearch}\uf8ff`)
+      .get();
+
+    const matchedExpenses = querySnap.docs
+      .map((doc) => normalizeExpenseDocument(doc.id, doc.data()))
+      .filter((expense) => expense.deletedAt === null)
+      .filter((expense) => {
+        if (projectId && expense.projectId !== projectId) return false;
+        if (status && expense.status !== status) return false;
+        if (category && expense.category !== category) return false;
+
+        return true;
+      });
+    const totalItems = matchedExpenses.length;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+
+    return {
+      items: matchedExpenses.slice(offset, offset + pageSize),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  let baseQuery: FirebaseFirestore.Query = collection.where(
+    "deletedAt",
+    "==",
+    null,
+  );
+
+  if (projectId) {
+    baseQuery = baseQuery.where("projectId", "==", projectId);
+  }
+
+  if (status) {
+    baseQuery = baseQuery.where("status", "==", status);
+  }
+
+  if (category) {
+    baseQuery = baseQuery.where("category", "==", category);
+  }
+
+  const countSnap = await baseQuery.count().get();
+  const totalItems = countSnap.data().count;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const querySnap = await baseQuery
+    .orderBy("expenseDate", "desc")
+    .offset(offset)
+    .limit(pageSize)
+    .get();
+
+  return {
+    items: querySnap.docs.map((doc) =>
+      normalizeExpenseDocument(doc.id, doc.data()),
+    ),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
 export async function getExpenseByIdService(
   id: string,
 ): Promise<ExpenseDetail> {
@@ -295,6 +389,15 @@ export async function createExpenseService({
       projectId: project?.id ?? null,
       projectName: project?.name ?? null,
       projectCode: project?.projectCode ?? null,
+      searchText: normalizeSearchText(
+        normalizedExpenseNumber,
+        expenseTitle,
+        category,
+        project?.name,
+        project?.projectCode,
+        normalizeNullableString(vendorName),
+        actor.name,
+      ),
 
       vendorName: normalizeNullableString(vendorName),
       amount,
@@ -379,6 +482,15 @@ export async function updateExpenseService({
       projectId: project?.id ?? null,
       projectName: project?.name ?? null,
       projectCode: project?.projectCode ?? null,
+      searchText: normalizeSearchText(
+        normalizedExpenseNumber,
+        expenseTitle,
+        category,
+        project?.name,
+        project?.projectCode,
+        normalizeNullableString(vendorName),
+        oldExpense.createdByName,
+      ),
 
       vendorName: normalizeNullableString(vendorName),
       amount,

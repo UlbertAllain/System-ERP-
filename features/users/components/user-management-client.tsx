@@ -1,8 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, Plus, ShieldCheck, UserX } from "lucide-react";
+import { useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
+  Loader2,
+  Plus,
+  Search,
+  ShieldCheck,
+  UserX,
+} from "lucide-react";
 
 import { ROLES, type RoleSlug } from "@/constants/permissions";
 import {
@@ -36,6 +45,15 @@ import {
 
 type UserManagementClientProps = {
   users: UserListItem[];
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    status: string;
+    roleSlug: string;
+  };
 };
 
 type CreateUserFormState = {
@@ -54,20 +72,76 @@ const initialCreateForm: CreateUserFormState = {
   mustChangePassword: true,
 };
 
-export function UserManagementClient({ users }: UserManagementClientProps) {
+export function UserManagementClient({
+  users,
+  pagination,
+}: UserManagementClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isPending, startTransition] = useTransition();
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [form, setForm] = useState<CreateUserFormState>(initialCreateForm);
   const [message, setMessage] = useState<string | null>(null);
-
-  const sortedUsers = useMemo(() => {
-    return [...users].sort((a, b) => a.email.localeCompare(b.email));
-  }, [users]);
+  const [search, setSearch] = useState(pagination.search);
+  const [status, setStatus] = useState(pagination.status);
+  const [roleSlug, setRoleSlug] = useState(pagination.roleSlug);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   function resetMessage() {
     setMessage(null);
+  }
+
+  function updateQuery(next: {
+    search?: string;
+    status?: string;
+    roleSlug?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextStatus = next.status ?? status;
+    const nextRoleSlug = next.roleSlug ?? roleSlug;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    if (nextRoleSlug) {
+      params.set("roleSlug", nextRoleSlug);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setStatus("");
+    setRoleSlug("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
   }
 
   function toggleRole(roleSlug: RoleSlug) {
@@ -364,6 +438,73 @@ export function UserManagementClient({ users }: UserManagementClientProps) {
         </CardHeader>
 
         <CardContent>
+          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_160px_220px_120px_auto_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleApplyFilters();
+                  }
+                }}
+                placeholder="Search name, email, role"
+                className="pl-9"
+              />
+            </div>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">All status</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+              <option value="SUSPENDED">SUSPENDED</option>
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={roleSlug}
+              onChange={(event) => setRoleSlug(event.target.value)}
+            >
+              <option value="">All roles</option>
+              {ROLES.map((role) => (
+                <option key={role.slug} value={role.slug}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(event.target.value);
+                updateQuery({
+                  page: 1,
+                  pageSize: event.target.value,
+                });
+              }}
+            >
+              <option value="10">10 rows</option>
+              <option value="20">20 rows</option>
+              <option value="50">50 rows</option>
+            </select>
+
+            <Button type="button" variant="outline" onClick={handleApplyFilters}>
+              <Search className="size-4" />
+              Apply
+            </Button>
+
+            <Button type="button" variant="ghost" onClick={handleResetFilters}>
+              <FilterX className="size-4" />
+              Reset
+            </Button>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -377,7 +518,7 @@ export function UserManagementClient({ users }: UserManagementClientProps) {
               </TableHeader>
 
               <TableBody>
-                {sortedUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.uid}>
                     <TableCell>
                       <div>
@@ -471,7 +612,7 @@ export function UserManagementClient({ users }: UserManagementClientProps) {
                   </TableRow>
                 ))}
 
-                {sortedUsers.length === 0 ? (
+                {users.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -483,6 +624,40 @@ export function UserManagementClient({ users }: UserManagementClientProps) {
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <p>
+              Showing {users.length} of {pagination.totalItems} users
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Prev
+              </Button>
+
+              <span>
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">

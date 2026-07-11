@@ -34,13 +34,17 @@ export const paymentIdSchema = z.object({
 });
 
 export const listPaymentsSchema = z.object({
+  search: z.string().trim().max(120).optional(),
   invoiceId: z.string().min(1).optional(),
   clientId: z.string().min(1).optional(),
   projectId: z.string().min(1).optional(),
+  method: paymentMethodSchema.optional(),
   status: paymentStatusSchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(50).default(10),
 });
 
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type PaymentIdInput = z.infer<typeof paymentIdSchema>;
-export type ListPaymentsInput = z.infer<typeof listPaymentsSchema>;
+export type ListPaymentsInput = z.input<typeof listPaymentsSchema>;

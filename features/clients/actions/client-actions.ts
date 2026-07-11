@@ -10,10 +10,12 @@ import {
 } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
 import type { ClientDetail, ClientListItem } from "@/types/client";
+import type { PaginatedResult } from "@/types/common";
 import {
   createClientService,
   deleteClientService,
   getClientByIdService,
+  listClientsPaginatedService,
   listClientsService,
   restoreClientService,
   updateClientService,
@@ -37,16 +39,39 @@ function revalidateClientPaths() {
 }
 
 export async function listClientsAction(
-  input: ListClientsInput = {},
+  input: Partial<ListClientsInput> = {},
 ): Promise<ActionResponse<ClientListItem[]>> {
   try {
-    listClientsSchema.parse(input);
+    listClientsSchema.partial().parse(input);
 
     const auth = await createSessionAuthContext();
 
     requireAnyPermission(auth.user, ["client.read", "client.read_all"]);
 
     const clients = await listClientsService();
+
+    return successResponse("Clients berhasil dimuat.", clients);
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function listClientsPaginatedAction(
+  input: Partial<ListClientsInput> = {},
+): Promise<ActionResponse<PaginatedResult<ClientListItem>>> {
+  try {
+    const payload = listClientsSchema.parse(input);
+
+    const auth = await createSessionAuthContext();
+
+    requireAnyPermission(auth.user, ["client.read", "client.read_all"]);
+
+    const clients = await listClientsPaginatedService({
+      search: payload.search,
+      status: payload.status,
+      page: payload.page,
+      pageSize: payload.pageSize,
+    });
 
     return successResponse("Clients berhasil dimuat.", clients);
   } catch (error) {

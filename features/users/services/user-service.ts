@@ -8,6 +8,7 @@ import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
 import { AppError } from "@/lib/errors/app-error";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import type { CurrentUser, UserStatus } from "@/types/auth";
+import type { PaginatedResult } from "@/types/common";
 import type { UserDetail, UserListItem } from "@/types/user";
 import type { PermissionSlug, RoleSlug } from "@/constants/permissions";
 
@@ -36,6 +37,14 @@ type UpdateUserRolesParams = {
 type UpdateUserStatusParams = {
   actor: CurrentUser;
   uid: string;
+};
+
+type ListUsersPaginatedParams = {
+  search?: string;
+  status?: UserStatus;
+  roleSlug?: RoleSlug;
+  page: number;
+  pageSize: number;
 };
 
 type RoleDocument = {
@@ -75,6 +84,67 @@ function normalizeUserDocument(uid: string, data: DocumentData): UserListItem {
     createdAt: timestampToDate(data.createdAt),
     updatedAt: timestampToDate(data.updatedAt),
     deletedAt: timestampToDate(data.deletedAt),
+  };
+}
+
+function normalizeSearchText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ")
+    .trim()
+    .toLowerCase();
+}
+
+function shouldUseFallbackQuery(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? error.code : null;
+  const message = "message" in error ? String(error.message) : "";
+
+  return (
+    code === 9 ||
+    code === "failed-precondition" ||
+    message.toLowerCase().includes("index")
+  );
+}
+
+function userMatchesListFilters(
+  user: UserListItem,
+  params: Pick<ListUsersPaginatedParams, "search" | "status" | "roleSlug">,
+) {
+  if (params.status && user.status !== params.status) return false;
+  if (params.roleSlug && !user.roleSlugs.includes(params.roleSlug)) return false;
+
+  const normalizedSearch = params.search?.trim().toLowerCase();
+
+  if (normalizedSearch) {
+    return [user.name, user.email, user.status, ...user.roleSlugs]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedSearch);
+  }
+
+  return true;
+}
+
+function paginateUsers(
+  users: UserListItem[],
+  page: number,
+  pageSize: number,
+): PaginatedResult<UserListItem> {
+  const totalItems = users.length;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const offset = (page - 1) * pageSize;
+
+  return {
+    items: users.slice(offset, offset + pageSize),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
   };
 }
 
@@ -159,6 +229,87 @@ export async function listUsersService(): Promise<UserListItem[]> {
     .filter((user) => user.deletedAt === null);
 }
 
+export async function listUsersPaginatedService({
+  search,
+  status,
+  roleSlug,
+  page,
+  pageSize,
+}: ListUsersPaginatedParams): Promise<PaginatedResult<UserListItem>> {
+  const normalizedSearch = search?.trim().toLowerCase();
+  const collection = getDb().collection(COLLECTIONS.users);
+  const offset = (page - 1) * pageSize;
+
+  if (normalizedSearch) {
+    const querySnap = await collection
+      .orderBy("searchText")
+      .startAt(normalizedSearch)
+      .endAt(`${normalizedSearch}\uf8ff`)
+      .get();
+
+    const matchedUsers = querySnap.docs
+      .map((doc) => normalizeUserDocument(doc.id, doc.data()))
+      .filter((user) => user.deletedAt === null)
+      .filter((user) => (status ? user.status === status : true))
+      .filter((user) => (roleSlug ? user.roleSlugs.includes(roleSlug) : true));
+    const totalItems = matchedUsers.length;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+
+    return {
+      items: matchedUsers.slice(offset, offset + pageSize),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  let baseQuery: FirebaseFirestore.Query = collection.where(
+    "deletedAt",
+    "==",
+    null,
+  );
+
+  if (status) {
+    baseQuery = baseQuery.where("status", "==", status);
+  }
+
+  if (roleSlug) {
+    baseQuery = baseQuery.where("roleSlugs", "array-contains", roleSlug);
+  }
+
+  try {
+    const countSnap = await baseQuery.count().get();
+    const totalItems = countSnap.data().count;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+    const querySnap = await baseQuery
+      .orderBy("createdAt", "desc")
+      .offset(offset)
+      .limit(pageSize)
+      .get();
+
+    return {
+      items: querySnap.docs.map((doc) =>
+        normalizeUserDocument(doc.id, doc.data()),
+      ),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  } catch (error) {
+    if (!shouldUseFallbackQuery(error)) {
+      throw error;
+    }
+
+    const users = (await listUsersService()).filter((user) =>
+      userMatchesListFilters(user, { search, status, roleSlug }),
+    );
+
+    return paginateUsers(users, page, pageSize);
+  }
+}
+
 export async function getUserByIdService(uid: string): Promise<UserDetail> {
   const user = await getUserDocumentOrThrow(uid);
 
@@ -216,6 +367,7 @@ export async function createInternalUserService({
       roleIds: roleSlugs,
       roleSlugs,
       permissionsCache: permissionSlugs,
+      searchText: normalizeSearchText(name, email, "ACTIVE", ...roleSlugs),
       lastLoginAt: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -275,6 +427,12 @@ export async function updateUserProfileService({
   await getDb().collection(COLLECTIONS.users).doc(uid).update({
     name,
     email,
+    searchText: normalizeSearchText(
+      name,
+      email,
+      oldUser.status,
+      ...oldUser.roleSlugs,
+    ),
     updatedAt: serverTimestamp(),
   });
 
@@ -317,6 +475,12 @@ export async function suspendUserService({
 
   await getDb().collection(COLLECTIONS.users).doc(uid).update({
     status: "SUSPENDED",
+    searchText: normalizeSearchText(
+      oldUser.name,
+      oldUser.email,
+      "SUSPENDED",
+      ...oldUser.roleSlugs,
+    ),
     updatedAt: serverTimestamp(),
   });
 
@@ -349,6 +513,12 @@ export async function activateUserService({
 
   await getDb().collection(COLLECTIONS.users).doc(uid).update({
     status: "ACTIVE",
+    searchText: normalizeSearchText(
+      oldUser.name,
+      oldUser.email,
+      "ACTIVE",
+      ...oldUser.roleSlugs,
+    ),
     updatedAt: serverTimestamp(),
   });
 
@@ -394,6 +564,12 @@ export async function updateUserRolesService({
     roleIds: roleSlugs,
     roleSlugs,
     permissionsCache: permissionSlugs,
+    searchText: normalizeSearchText(
+      oldUser.name,
+      oldUser.email,
+      oldUser.status,
+      ...roleSlugs,
+    ),
     updatedAt: serverTimestamp(),
   });
 
@@ -436,6 +612,12 @@ export async function softDeleteUserService({
 
   await getDb().collection(COLLECTIONS.users).doc(uid).update({
     status: "INACTIVE",
+    searchText: normalizeSearchText(
+      oldUser.name,
+      oldUser.email,
+      "INACTIVE",
+      ...oldUser.roleSlugs,
+    ),
     deletedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

@@ -55,13 +55,16 @@ export const rejectExpenseSchema = z.object({
 });
 
 export const listExpensesSchema = z.object({
+  search: z.string().trim().max(120).optional(),
   projectId: z.string().min(1).optional(),
   status: expenseStatusSchema.optional(),
   category: expenseCategorySchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(50).default(10),
 });
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type ExpenseIdInput = z.infer<typeof expenseIdSchema>;
 export type RejectExpenseInput = z.infer<typeof rejectExpenseSchema>;
-export type ListExpensesInput = z.infer<typeof listExpensesSchema>;
+export type ListExpensesInput = z.input<typeof listExpensesSchema>;

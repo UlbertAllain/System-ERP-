@@ -1,14 +1,18 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Edit,
+  FilterX,
   Loader2,
   MessageSquare,
   Plus,
   Save,
+  Search,
   Send,
   Trash2,
   X,
@@ -55,6 +59,16 @@ type TaskManagementClientProps = {
   projects: ProjectListItem[];
   milestones: MilestoneListItem[];
   members: ProjectMemberListItem[];
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    projectId: string;
+    status: string;
+    priority: string;
+  };
   commentPermissions: {
     canRead: boolean;
     canCreate: boolean;
@@ -158,9 +172,11 @@ export function TaskManagementClient({
   projects,
   milestones,
   members,
+  pagination,
   commentPermissions,
 }: TaskManagementClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isPending, startTransition] = useTransition();
   const [isCommentPending, startCommentTransition] = useTransition();
@@ -175,6 +191,11 @@ export function TaskManagementClient({
   const [commentBody, setCommentBody] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentBody, setEditingCommentBody] = useState("");
+  const [search, setSearch] = useState(pagination.search);
+  const [filterProjectId, setFilterProjectId] = useState(pagination.projectId);
+  const [filterStatus, setFilterStatus] = useState(pagination.status);
+  const [filterPriority, setFilterPriority] = useState(pagination.priority);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   const activeProjects = useMemo(() => {
     return projects
@@ -227,14 +248,67 @@ export function TaskManagementClient({
   }, [activeMembers, form.projectId]);
 
   const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      if (a.projectCode === b.projectCode) {
-        return a.order - b.order;
-      }
-
-      return a.projectCode.localeCompare(b.projectCode);
-    });
+    return tasks;
   }, [tasks]);
+
+  function updateQuery(next: {
+    search?: string;
+    projectId?: string;
+    status?: string;
+    priority?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextProjectId = next.projectId ?? filterProjectId;
+    const nextStatus = next.status ?? filterStatus;
+    const nextPriority = next.priority ?? filterPriority;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextProjectId) {
+      params.set("projectId", nextProjectId);
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    if (nextPriority) {
+      params.set("priority", nextPriority);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setFilterProjectId("");
+    setFilterStatus("");
+    setFilterPriority("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   function resetForm() {
     const defaultProjectId = activeProjects[0]?.id ?? "";
@@ -922,6 +996,85 @@ export function TaskManagementClient({
         </div>
       ) : null}
 
+      <Card>
+        <CardContent className="grid gap-3 p-4 xl:grid-cols-[1fr_220px_170px_170px_140px_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleApplyFilters();
+                }
+              }}
+              placeholder="Search title, project, milestone, assignee"
+              className="pl-9"
+            />
+          </div>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={filterProjectId}
+            onChange={(event) => setFilterProjectId(event.target.value)}
+          >
+            <option value="">All projects</option>
+            {activeProjects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.projectCode} - {project.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={filterStatus}
+            onChange={(event) => setFilterStatus(event.target.value)}
+          >
+            <option value="">All status</option>
+            {taskStatuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={filterPriority}
+            onChange={(event) => setFilterPriority(event.target.value)}
+          >
+            <option value="">All priority</option>
+            {taskPriorities.map((priority) => (
+              <option key={priority} value={priority}>
+                {priority}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={pageSize}
+            onChange={(event) => setPageSize(event.target.value)}
+          >
+            {[10, 20, 50, 100].map((size) => (
+              <option key={size} value={String(size)}>
+                {size} / page
+              </option>
+            ))}
+          </select>
+
+          <Button type="button" onClick={handleApplyFilters}>
+            Apply
+          </Button>
+
+          <Button type="button" variant="outline" onClick={handleResetFilters}>
+            <FilterX className="size-4" />
+            Reset
+          </Button>
+        </CardContent>
+      </Card>
+
       {!canCreateTask ? (
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
@@ -932,10 +1085,16 @@ export function TaskManagementClient({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardList className="size-5" />
-            Tasks
-          </CardTitle>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="size-5" />
+              Tasks
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {pagination.totalItems} records - page {pagination.page} of{" "}
+              {pagination.totalPages}
+            </p>
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -1046,6 +1205,35 @@ export function TaskManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {sortedTasks.length} of {pagination.totalItems} tasks
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

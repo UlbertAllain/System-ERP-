@@ -1,8 +1,19 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Banknote, Edit, Loader2, Plus, Trash2, XCircle } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Banknote,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  FilterX,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 
 import {
   cancelPaymentAction,
@@ -10,8 +21,13 @@ import {
   deletePaymentAction,
   updatePaymentAction,
 } from "@/features/finance/actions";
+import type { ClientListItem } from "@/types/client";
 import type { InvoiceListItem } from "@/types/invoice";
-import type { PaymentListItem, PaymentMethod } from "@/types/payment";
+import type {
+  PaymentListItem,
+  PaymentMethod,
+} from "@/types/payment";
+import type { ProjectListItem } from "@/types/project";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +53,19 @@ import { Textarea } from "@/components/ui/textarea";
 type PaymentManagementClientProps = {
   payments: PaymentListItem[];
   invoices: InvoiceListItem[];
+  clients: ClientListItem[];
+  projects: ProjectListItem[];
+  pagination: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    search: string;
+    status: string;
+    method: string;
+    clientId: string;
+    projectId: string;
+  };
 };
 
 type PaymentFormState = {
@@ -122,14 +151,24 @@ function getStatusVariant(status: PaymentListItem["status"]) {
 export function PaymentManagementClient({
   payments,
   invoices,
+  clients,
+  projects,
+  pagination,
 }: PaymentManagementClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [form, setForm] = useState<PaymentFormState>(initialForm);
+  const [search, setSearch] = useState(pagination.search);
+  const [status, setStatus] = useState(pagination.status);
+  const [method, setMethod] = useState(pagination.method);
+  const [clientId, setClientId] = useState(pagination.clientId);
+  const [projectId, setProjectId] = useState(pagination.projectId);
+  const [pageSize, setPageSize] = useState(String(pagination.pageSize));
 
   const payableInvoices = useMemo(() => {
     return invoices
@@ -143,13 +182,74 @@ export function PaymentManagementClient({
   }, [form.invoiceId, invoices]);
 
   const sortedPayments = useMemo(() => {
-    return [...payments].sort((a, b) => {
-      const aTime = a.paymentDate?.getTime() ?? 0;
-      const bTime = b.paymentDate?.getTime() ?? 0;
-
-      return bTime - aTime;
-    });
+    return payments;
   }, [payments]);
+
+  function updateQuery(next: {
+    search?: string;
+    status?: string;
+    method?: string;
+    clientId?: string;
+    projectId?: string;
+    page?: number;
+    pageSize?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextSearch = next.search ?? search;
+    const nextStatus = next.status ?? status;
+    const nextMethod = next.method ?? method;
+    const nextClientId = next.clientId ?? clientId;
+    const nextProjectId = next.projectId ?? projectId;
+    const nextPageSize = next.pageSize ?? pageSize;
+    const nextPage = next.page ?? 1;
+
+    if (nextSearch.trim()) {
+      params.set("search", nextSearch.trim());
+    }
+
+    if (nextStatus) {
+      params.set("status", nextStatus);
+    }
+
+    if (nextMethod) {
+      params.set("method", nextMethod);
+    }
+
+    if (nextClientId) {
+      params.set("clientId", nextClientId);
+    }
+
+    if (nextProjectId) {
+      params.set("projectId", nextProjectId);
+    }
+
+    params.set("page", String(nextPage));
+    params.set("pageSize", nextPageSize);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function handleApplyFilters() {
+    updateQuery({
+      page: 1,
+    });
+  }
+
+  function handleResetFilters() {
+    setSearch("");
+    setStatus("");
+    setMethod("");
+    setClientId("");
+    setProjectId("");
+    setPageSize("10");
+    router.push(`${pathname}?page=1&pageSize=10`);
+  }
+
+  function goToPage(page: number) {
+    updateQuery({
+      page,
+    });
+  }
 
   function resetForm() {
     const defaultInvoice = payableInvoices[0];
@@ -525,6 +625,105 @@ export function PaymentManagementClient({
         </CardHeader>
 
         <CardContent>
+          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_150px_170px_180px_220px_120px_auto_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleApplyFilters();
+                  }
+                }}
+                placeholder="Search invoice, client, reference"
+                className="pl-9"
+              />
+            </div>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">All status</option>
+              <option value="CONFIRMED">CONFIRMED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={method}
+              onChange={(event) => setMethod(event.target.value)}
+            >
+              <option value="">All methods</option>
+              {paymentMethods.map((paymentMethod) => (
+                <option key={paymentMethod} value={paymentMethod}>
+                  {paymentMethod}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={clientId}
+              onChange={(event) => {
+                setClientId(event.target.value);
+                setProjectId("");
+              }}
+            >
+              <option value="">All clients</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              <option value="">All projects</option>
+              {projects
+                .filter((project) =>
+                  clientId ? project.clientId === clientId : true,
+                )
+                .map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.projectCode} - {project.name}
+                  </option>
+                ))}
+            </select>
+
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(event.target.value);
+                updateQuery({
+                  page: 1,
+                  pageSize: event.target.value,
+                });
+              }}
+            >
+              <option value="10">10 rows</option>
+              <option value="20">20 rows</option>
+              <option value="50">50 rows</option>
+            </select>
+
+            <Button type="button" variant="outline" onClick={handleApplyFilters}>
+              <Search className="size-4" />
+              Apply
+            </Button>
+
+            <Button type="button" variant="ghost" onClick={handleResetFilters}>
+              <FilterX className="size-4" />
+              Reset
+            </Button>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -630,6 +829,40 @@ export function PaymentManagementClient({
                 ) : null}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <p>
+              Showing {payments.length} of {pagination.totalItems} payments
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => goToPage(pagination.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+                Prev
+              </Button>
+
+              <span>
+                Page {pagination.page} / {pagination.totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => goToPage(pagination.page + 1)}
+              >
+                Next
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

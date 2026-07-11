@@ -10,6 +10,7 @@ import {
 } from "@/lib/firebase/firestore";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { AppError } from "@/lib/errors/app-error";
+import type { PaginatedResult } from "@/types/common";
 import type { CurrentUser } from "@/types/auth";
 import type {
   TaskDetail,
@@ -56,6 +57,14 @@ type ListTasksParams = {
   assigneeEmployeeId?: string;
 };
 
+type ListTasksPaginatedParams = ListTasksParams & {
+  search?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  page: number;
+  pageSize: number;
+};
+
 type ProjectSnapshot = {
   id: string;
   name: string;
@@ -93,6 +102,14 @@ function normalizeNullableString(
   const trimmed = value?.trim();
 
   return trimmed ? trimmed : null;
+}
+
+function normalizeSearchText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ")
+    .trim()
+    .toLowerCase();
 }
 
 function dateStringToTimestamp(
@@ -369,6 +386,97 @@ export async function listTasksService({
     });
 }
 
+export async function listTasksPaginatedService({
+  projectId,
+  milestoneId,
+  assigneeEmployeeId,
+  search,
+  status,
+  priority,
+  page,
+  pageSize,
+}: ListTasksPaginatedParams): Promise<PaginatedResult<TaskListItem>> {
+  const normalizedSearch = search?.trim().toLowerCase();
+  const collection = getDb().collection(COLLECTIONS.tasks);
+  const offset = (page - 1) * pageSize;
+
+  if (normalizedSearch) {
+    const querySnap = await collection
+      .orderBy("searchText")
+      .startAt(normalizedSearch)
+      .endAt(`${normalizedSearch}\uf8ff`)
+      .get();
+
+    const matchedTasks = querySnap.docs
+      .map((doc) => normalizeTaskDocument(doc.id, doc.data()))
+      .filter((task) => task.deletedAt === null)
+      .filter((task) => (projectId ? task.projectId === projectId : true))
+      .filter((task) => (milestoneId ? task.milestoneId === milestoneId : true))
+      .filter((task) =>
+        assigneeEmployeeId
+          ? task.assigneeEmployeeId === assigneeEmployeeId
+          : true,
+      )
+      .filter((task) => (status ? task.status === status : true))
+      .filter((task) => (priority ? task.priority === priority : true));
+    const totalItems = matchedTasks.length;
+    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+
+    return {
+      items: matchedTasks.slice(offset, offset + pageSize),
+      totalItems,
+      page,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  let baseQuery: FirebaseFirestore.Query = collection.where(
+    "deletedAt",
+    "==",
+    null,
+  );
+
+  if (projectId) {
+    baseQuery = baseQuery.where("projectId", "==", projectId);
+  }
+
+  if (milestoneId) {
+    baseQuery = baseQuery.where("milestoneId", "==", milestoneId);
+  }
+
+  if (assigneeEmployeeId) {
+    baseQuery = baseQuery.where("assigneeEmployeeId", "==", assigneeEmployeeId);
+  }
+
+  if (status) {
+    baseQuery = baseQuery.where("status", "==", status);
+  }
+
+  if (priority) {
+    baseQuery = baseQuery.where("priority", "==", priority);
+  }
+
+  const countSnap = await baseQuery.count().get();
+  const totalItems = countSnap.data().count;
+  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
+  const querySnap = await baseQuery
+    .orderBy("createdAt", "desc")
+    .offset(offset)
+    .limit(pageSize)
+    .get();
+
+  return {
+    items: querySnap.docs.map((doc) =>
+      normalizeTaskDocument(doc.id, doc.data()),
+    ),
+    totalItems,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
 export async function getTaskByIdService(id: string): Promise<TaskDetail> {
   const task = await getTaskDocumentOrThrow(id);
 
@@ -425,6 +533,13 @@ export async function createTaskService({
       status: "TODO",
       priority,
       order,
+      searchText: normalizeSearchText(
+        taskTitle,
+        project.projectCode,
+        project.name,
+        milestone?.title,
+        assignee?.fullName,
+      ),
 
       startDate: dateStringToTimestamp(startDate),
       dueDate: dateStringToTimestamp(dueDate),
@@ -501,6 +616,13 @@ export async function updateTaskService({
       status,
       priority,
       order,
+      searchText: normalizeSearchText(
+        taskTitle,
+        oldTask.projectCode,
+        oldTask.projectName,
+        milestone?.title,
+        assignee?.fullName,
+      ),
 
       startDate: dateStringToTimestamp(startDate),
       dueDate: dateStringToTimestamp(dueDate),

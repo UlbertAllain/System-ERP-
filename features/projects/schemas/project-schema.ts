@@ -57,7 +57,13 @@ export const projectIdSchema = z.object({
   id: z.string().min(1, "Project ID wajib diisi."),
 });
 
-export const listProjectsSchema = z.object({});
+export const listProjectsSchema = z.object({
+  search: z.string().trim().max(160).optional(),
+  status: projectStatusSchema.optional(),
+  priority: projectPrioritySchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(10),
+});
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;

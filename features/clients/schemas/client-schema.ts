@@ -28,7 +28,12 @@ export const clientIdSchema = z.object({
   id: z.string().min(1, "Client ID wajib diisi."),
 });
 
-export const listClientsSchema = z.object({});
+export const listClientsSchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  status: clientStatusSchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(10),
+});
 export const updateClientLogoSchema = z.object({
   id: z.string().min(1, "Client ID wajib diisi."),
   logo: z.object({

@@ -62,13 +62,16 @@ export const markInvoicePaidSchema = z.object({
 });
 
 export const listInvoicesSchema = z.object({
+  search: z.string().trim().max(120).optional(),
   clientId: z.string().min(1).optional(),
   projectId: z.string().min(1).optional(),
   status: invoiceStatusSchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(50).default(10),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 export type InvoiceIdInput = z.infer<typeof invoiceIdSchema>;
 export type MarkInvoicePaidInput = z.infer<typeof markInvoicePaidSchema>;
-export type ListInvoicesInput = z.infer<typeof listInvoicesSchema>;
+export type ListInvoicesInput = z.input<typeof listInvoicesSchema>;

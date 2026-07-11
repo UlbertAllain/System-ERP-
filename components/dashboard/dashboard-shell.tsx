@@ -274,6 +274,10 @@ function canSeeNavigationItem(
     return true;
   }
 
+  if (user?.roleSlugs.includes("super_admin")) {
+    return true;
+  }
+
   return item.permissions.some((permission) =>
     user?.permissions.includes(permission),
   );
