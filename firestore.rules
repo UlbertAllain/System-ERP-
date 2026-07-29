@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Seluruh data bisnis diakses melalui Server Actions/API menggunakan
+    // Firebase Admin SDK. Browser tidak memiliki jalur baca/tulis langsung.
+    // Firebase Admin SDK melewati rules ini secara aman di server.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
