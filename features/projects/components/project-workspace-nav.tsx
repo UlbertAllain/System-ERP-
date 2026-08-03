@@ -79,7 +79,7 @@ export function ProjectWorkspaceNav({
             className={cn(
               "group flex items-center gap-3 rounded-md border bg-card px-4 py-3 transition-all",
               isActive
-                ? "border-gold/45 bg-gold/[0.07] shadow-[inset_3px_0_0_#e1a94d]"
+                ? "border-gold/45 bg-gold/[0.07] shadow-[inset_3px_0_0_#3b82f6]"
                 : "hover:border-gold/30 hover:bg-secondary/45",
             )}
           >

@@ -128,21 +128,24 @@ function SummaryCard({
   href?: string;
 }) {
   const content = (
-    <Card className="h-full transition-transform duration-200 hover:-translate-y-0.5">
-      <CardContent className="flex h-full items-start justify-between gap-4 p-5">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.09em] text-muted-foreground">
+    <Card className="h-full bg-card/95 transition-colors hover:border-primary/35">
+      <CardContent className="p-0">
+        <div className="flex items-center justify-between border-b px-4 py-2.5">
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">
             {title}
           </p>
-          <p className="mt-3 truncate text-[1.65rem] font-semibold leading-none tracking-[-0.035em] text-foreground">
+          <span className="flex size-7 items-center justify-center rounded border border-primary/20 bg-primary/10 text-primary">
+            <Icon className="size-3.5" />
+          </span>
+        </div>
+        <div className="px-4 py-4">
+          <p className="truncate text-[1.55rem] font-semibold leading-none tracking-[-0.04em] text-foreground">
             {value}
           </p>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            {description}
-          </p>
-        </div>
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-gold/20 bg-gold/10 text-gold">
-          <Icon className="size-5" />
+          <div className="mt-3 flex items-start gap-2 text-[0.7rem] leading-4 text-muted-foreground">
+            <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
+            <span>{description}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -164,10 +167,10 @@ function ProgressRow({
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+      <div className="mb-1.5 flex items-center justify-between gap-3 text-[0.7rem]">
         <span className="font-medium text-foreground">{label}</span>
-        <span className="text-muted-foreground">
-          {numberFormatter.format(value)} · {percentage}%
+        <span className="font-mono text-muted-foreground">
+          {numberFormatter.format(value)} / {numberFormatter.format(total)}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -313,28 +316,41 @@ export default async function DashboardPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <section className="flex flex-col justify-between gap-4 border-b pb-5 md:flex-row md:items-end">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+    <div className="space-y-4">
+      <section className="flex flex-col justify-between gap-3 rounded-md border bg-card/92 px-4 py-3.5 md:flex-row md:items-center">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[0.64rem] font-bold uppercase tracking-[0.13em] text-primary">
+            <span className="size-1.5 rounded-full bg-primary" />
+            Command center
+          </div>
+          <h2 className="mt-2 truncate text-xl font-semibold tracking-tight md:text-2xl">
             Ringkasan operasional
-          </p>
-          <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl">
-            Selamat datang, {user.name || user.email.split("@")[0]}
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Fokuskan pekerjaan pada data yang membutuhkan tindakan. Seluruh angka mengikuti akses akun Anda.
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Selamat datang, {user.name || user.email.split("@")[0]}. Data ditampilkan sesuai hak akses akun.
           </p>
         </div>
-        <div className="rounded-md border bg-card px-4 py-2.5 text-right">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.13em] text-muted-foreground">
-            Hari ini
-          </p>
-          <p className="mt-1 text-sm font-medium capitalize">{formatToday()}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="rounded-md border bg-secondary/35 px-3 py-2 text-right">
+            <p className="text-[0.58rem] font-bold uppercase tracking-[0.11em] text-muted-foreground">
+              Hari ini
+            </p>
+            <p className="mt-1 text-[0.7rem] font-medium capitalize">
+              {formatToday()}
+            </p>
+          </div>
+          {user.permissions.includes("report.dashboard.read") ? (
+            <Button asChild size="sm">
+              <Link href="/reports">
+                Buka laporan
+                <ArrowUpRight className="size-3.5" />
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {canReadTasks ? (
           <SummaryCard
             title="Tugas terbuka"
@@ -355,16 +371,16 @@ export default async function DashboardPage() {
         ) : null}
         {canReadFinance ? (
           <SummaryCard
-            title="Sisa tagihan"
+            title="Piutang terbuka"
             value={compactCurrencyFormatter.format(outstandingAmount)}
-            description={`${outstandingInvoices.length} tagihan belum lunas`}
+            description={`${outstandingInvoices.length} tagihan masih memiliki sisa pembayaran`}
             icon={CircleDollarSign}
             href="/invoices"
           />
         ) : null}
         {canReadFinance ? (
           <SummaryCard
-            title="Pengeluaran diproses"
+            title="Biaya diproses"
             value={compactCurrencyFormatter.format(pendingExpenseAmount)}
             description={`${pendingExpenses.length} pengajuan menunggu proses`}
             icon={Receipt}
@@ -373,21 +389,24 @@ export default async function DashboardPage() {
         ) : null}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.7fr)]">
         <Card>
           <CardHeader className="border-b">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <div>
-                <CardTitle>Pekerjaan yang perlu ditindaklanjuti</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Tugas terbuka diurutkan berdasarkan tenggat terdekat.
+                <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Task queue
+                </p>
+                <CardTitle className="mt-1">Pekerjaan prioritas</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tugas terbuka berdasarkan tenggat terdekat.
                 </p>
               </div>
               {canReadTasks ? (
                 <Button asChild variant="outline" size="sm">
                   <Link href="/projects/tasks">
-                    Buka daftar tugas
-                    <ArrowUpRight className="ml-2 size-4" />
+                    Semua tugas
+                    <ArrowUpRight className="size-3.5" />
                   </Link>
                 </Button>
               ) : null}
@@ -396,159 +415,217 @@ export default async function DashboardPage() {
           <CardContent className="p-0">
             {upcomingTasks.length > 0 ? (
               <div className="divide-y">
-                {upcomingTasks.map((task) => {
+                {upcomingTasks.map((task, index) => {
                   const attention = task.status === "BLOCKED" || isOverdue(task);
 
                   return (
                     <div
                       key={task.id}
-                      className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-secondary/40 md:flex-row md:items-center md:justify-between"
+                      className="grid gap-3 px-4 py-3 transition-colors hover:bg-secondary/35 md:grid-cols-[32px_minmax(0,1fr)_auto_auto] md:items-center"
                     >
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div
-                          className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border ${
-                            attention
-                              ? "border-destructive/20 bg-destructive/10 text-destructive"
-                              : "border-gold/20 bg-gold/10 text-gold"
-                          }`}
-                        >
-                          {attention ? (
-                            <AlertTriangle className="size-4" />
-                          ) : (
-                            <CalendarClock className="size-4" />
-                          )}
+                      <span className="flex size-7 items-center justify-center rounded border bg-secondary/45 font-mono text-[0.62rem] font-semibold text-muted-foreground">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`size-1.5 shrink-0 rounded-full ${
+                              attention ? "bg-destructive" : "bg-primary"
+                            }`}
+                          />
+                          <p className="truncate text-xs font-semibold">{task.title}</p>
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{task.title}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            {task.projectCode} · {task.projectName}
-                          </p>
-                        </div>
+                        <p className="mt-1 truncate pl-3.5 font-mono text-[0.64rem] text-muted-foreground">
+                          {task.projectCode} / {task.projectName}
+                        </p>
                       </div>
-                      <div className="flex shrink-0 items-center justify-between gap-3 md:justify-end">
-                        <Badge variant="outline">{getBusinessLabel(task.status)}</Badge>
-                        <span className="w-28 text-right text-xs text-muted-foreground">
-                          {formatDate(task.dueDate)}
-                        </span>
+                      <Badge
+                        variant={attention ? "destructive" : "outline"}
+                        className="justify-self-start md:justify-self-end"
+                      >
+                        {getBusinessLabel(task.status)}
+                      </Badge>
+                      <div className="flex min-w-28 items-center gap-1.5 text-[0.66rem] text-muted-foreground md:justify-end">
+                        {attention ? (
+                          <AlertTriangle className="size-3.5 text-destructive" />
+                        ) : (
+                          <CalendarClock className="size-3.5" />
+                        )}
+                        {formatDate(task.dueDate)}
                       </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="flex min-h-40 flex-col items-center justify-center px-6 py-10 text-center">
-                <CheckCircle2 className="size-7 text-gold" />
-                <p className="mt-3 text-sm font-semibold">Tidak ada tugas mendesak</p>
-                <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
-                  Semua tugas yang dapat Anda akses sudah selesai atau belum memiliki tindakan lanjutan.
+              <div className="flex min-h-44 flex-col items-center justify-center px-6 py-10 text-center">
+                <CheckCircle2 className="size-6 text-primary" />
+                <p className="mt-3 text-xs font-semibold">Tidak ada tugas mendesak</p>
+                <p className="mt-1 max-w-sm text-[0.7rem] leading-5 text-muted-foreground">
+                  Semua tugas yang dapat Anda akses sudah selesai atau belum memerlukan tindakan.
                 </p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle>Distribusi pekerjaan</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Gambaran status berdasarkan data yang dapat Anda akses.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-5 pt-5">
-            {canReadTasks ? (
-              <>
-                <ProgressRow label="Tugas selesai" value={completedTasks.length} total={tasks.length} />
-                <ProgressRow label="Tugas berjalan" value={inProgressTasks.length} total={tasks.length} />
-                <ProgressRow label="Tugas terhambat" value={blockedTasks.length} total={tasks.length} />
-              </>
-            ) : null}
-            {canReadProjects ? (
-              <ProgressRow label="Proyek aktif" value={activeProjects.length} total={projects.length} />
-            ) : null}
-            {!canReadTasks && !canReadProjects ? (
-              <p className="text-sm leading-6 text-muted-foreground">
-                Akun ini tidak memiliki akses ke data proyek atau tugas.
+        <div className="grid gap-3">
+          <Card>
+            <CardHeader className="border-b">
+              <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                Workload telemetry
               </p>
-            ) : null}
-          </CardContent>
-        </Card>
+              <CardTitle>Distribusi pekerjaan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {canReadTasks ? (
+                <>
+                  <ProgressRow label="Tugas selesai" value={completedTasks.length} total={tasks.length} />
+                  <ProgressRow label="Tugas berjalan" value={inProgressTasks.length} total={tasks.length} />
+                  <ProgressRow label="Tugas terhambat" value={blockedTasks.length} total={tasks.length} />
+                </>
+              ) : null}
+              {canReadProjects ? (
+                <ProgressRow label="Proyek aktif" value={activeProjects.length} total={projects.length} />
+              ) : null}
+              {!canReadTasks && !canReadProjects ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Akun ini tidak memiliki akses ke data proyek atau tugas.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b">
+              <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                Shortcut
+              </p>
+              <CardTitle>Tindakan cepat</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 pt-3">
+              {visibleActions.map((action) => (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="group flex items-center justify-between gap-3 rounded-md border bg-background/45 px-3 py-2.5 transition-colors hover:border-primary/35 hover:bg-primary/5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold">{action.label}</p>
+                    <p className="mt-0.5 truncate text-[0.65rem] text-muted-foreground">
+                      {action.description}
+                    </p>
+                  </div>
+                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                </Link>
+              ))}
+              {visibleActions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Tidak ada tindakan cepat untuk peran akun ini.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)]">
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle>Tindakan cepat</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Mulai pekerjaan umum tanpa mencari menu terlebih dahulu.
-            </p>
-          </CardHeader>
-          <CardContent className="grid gap-3 pt-4 md:grid-cols-2">
-            {visibleActions.map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group flex items-start justify-between gap-4 rounded-md border bg-card p-4 transition-all hover:border-gold/35 hover:bg-secondary/40"
-              >
-                <div>
-                  <p className="text-sm font-semibold">{action.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {action.description}
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {canReadProjects ? (
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle>Status portofolio proyek</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Komposisi proyek yang dapat diakses akun ini.
+              </p>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-px bg-border p-0">
+              {[
+                ["Aktif", activeProjects.length],
+                ["Selesai", completedProjects.length],
+                ["Ditunda", onHoldProjects.length],
+                ["Total", projects.length],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="bg-card px-4 py-3.5">
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    {label}
+                  </p>
+                  <p className="mt-2 font-mono text-xl font-semibold">
+                    {numberFormatter.format(Number(value))}
                   </p>
                 </div>
-                <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-gold" />
-              </Link>
-            ))}
-            {visibleActions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Tidak ada tindakan cepat yang tersedia untuk peran akun ini.
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {canReadFinance ? (
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle>Kontrol keuangan</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Nilai yang masih membutuhkan penyelesaian.
               </p>
-            ) : null}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-4">
+              <div className="flex items-end justify-between gap-4 border-b pb-3">
+                <div>
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    Piutang terbuka
+                  </p>
+                  <p className="mt-1.5 text-base font-semibold">
+                    {currencyFormatter.format(outstandingAmount)}
+                  </p>
+                </div>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {outstandingInvoices.length} invoice
+                </span>
+              </div>
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    Pengeluaran diproses
+                  </p>
+                  <p className="mt-1.5 text-base font-semibold">
+                    {currencyFormatter.format(pendingExpenseAmount)}
+                  </p>
+                </div>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {pendingExpenses.length} item
+                </span>
+              </div>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/finance">Buka ringkasan keuangan</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {canReadHr && hrSummary ? (
           <Card>
             <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
-                <Users className="size-4 text-gold" />
-                Kehadiran tim hari ini
+                <Users className="size-4 text-primary" />
+                Status SDM hari ini
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Monitoring kehadiran dan permintaan cuti.
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4 pt-5 text-sm">
-              <div className="flex justify-between gap-4 border-b pb-3">
+            <CardContent className="space-y-3 pt-4 text-xs">
+              <div className="flex justify-between gap-4 border-b pb-2.5">
                 <span className="text-muted-foreground">Sudah masuk</span>
-                <strong>{numberFormatter.format(hrSummary.todayClockedIn)}</strong>
+                <strong className="font-mono">{numberFormatter.format(hrSummary.todayClockedIn)}</strong>
               </div>
-              <div className="flex justify-between gap-4 border-b pb-3">
+              <div className="flex justify-between gap-4 border-b pb-2.5">
                 <span className="text-muted-foreground">Belum masuk</span>
-                <strong>{numberFormatter.format(hrSummary.todayNotClockedIn)}</strong>
+                <strong className="font-mono">{numberFormatter.format(hrSummary.todayNotClockedIn)}</strong>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Cuti menunggu</span>
-                <strong>{numberFormatter.format(hrSummary.pendingLeaveRequests)}</strong>
+                <strong className="font-mono">{numberFormatter.format(hrSummary.pendingLeaveRequests)}</strong>
               </div>
-              <Button asChild variant="outline" size="sm" className="mt-1 w-full">
+              <Button asChild variant="outline" size="sm" className="w-full">
                 <Link href="/hr">Buka ringkasan SDM</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ) : canReadFinance ? (
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle>Ringkasan piutang</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
-                Belum diterima
-              </p>
-              <p className="mt-3 text-2xl font-semibold">
-                {currencyFormatter.format(outstandingAmount)}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Terdiri dari {outstandingInvoices.length} tagihan yang masih memiliki sisa pembayaran.
-              </p>
-              <Button asChild variant="outline" size="sm" className="mt-5 w-full">
-                <Link href="/finance">Buka ringkasan keuangan</Link>
               </Button>
             </CardContent>
           </Card>
