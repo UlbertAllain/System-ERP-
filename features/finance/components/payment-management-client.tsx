@@ -5,14 +5,8 @@ import { getBusinessLabel } from "@/lib/ui/business-labels";
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Banknote,
-  ChevronLeft,
-  ChevronRight,
-  FilterX,
   Loader2,
   Plus,
-  Search,
-  XCircle,
 } from "lucide-react";
 
 import {
@@ -26,7 +20,6 @@ import type {
   PaymentMethod,
 } from "@/types/payment";
 import type { ProjectListItem } from "@/types/project";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -38,15 +31,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { PaymentManagementList } from "@/features/finance/components/payment-management-list";
 
 type PaymentManagementClientProps = {
   payments: PaymentListItem[];
@@ -109,35 +95,6 @@ function parseNumber(value: string) {
   return parsed;
 }
 
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(value);
-}
-
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function getStatusVariant(status: PaymentListItem["status"]) {
-  if (status === "CONFIRMED") {
-    return "secondary" as const;
-  }
-
-  return "destructive" as const;
-}
-
 export function PaymentManagementClient({
   payments,
   invoices,
@@ -170,10 +127,6 @@ export function PaymentManagementClient({
   const selectedInvoice = useMemo(() => {
     return invoices.find((invoice) => invoice.id === form.invoiceId) ?? null;
   }, [form.invoiceId, invoices]);
-
-  const sortedPayments = useMemo(() => {
-    return payments;
-  }, [payments]);
 
   function updateQuery(next: {
     search?: string;
@@ -532,239 +485,39 @@ export function PaymentManagementClient({
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Banknote className="size-5" />
-            Pembayaran
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_150px_170px_180px_220px_120px_auto_auto]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleApplyFilters();
-                  }
-                }}
-                placeholder="Cari tagihan, pelanggan, atau referensi"
-                className="pl-9"
-              />
-            </div>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Semua status</option>
-              <option value="CONFIRMED">CONFIRMED</option>
-              <option value="CANCELLED">CANCELLED</option>
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={method}
-              onChange={(event) => setMethod(event.target.value)}
-            >
-              <option value="">Semua metode</option>
-              {paymentMethods.map((paymentMethod) => (
-                <option key={paymentMethod} value={paymentMethod}>
-                  {getBusinessLabel(paymentMethod)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={clientId}
-              onChange={(event) => {
-                setClientId(event.target.value);
-                setProjectId("");
-              }}
-            >
-              <option value="">Semua pelanggan</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
-            >
-              <option value="">Semua proyek</option>
-              {projects
-                .filter((project) =>
-                  clientId ? project.clientId === clientId : true,
-                )
-                .map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.projectCode} - {project.name}
-                  </option>
-                ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(event.target.value);
-                updateQuery({
-                  page: 1,
-                  pageSize: event.target.value,
-                });
-              }}
-            >
-              <option value="10">10 rows</option>
-              <option value="20">20 rows</option>
-              <option value="50">50 rows</option>
-            </select>
-
-            <Button type="button" variant="outline" onClick={handleApplyFilters}>
-              <Search className="size-4" />
-              Terapkan
-            </Button>
-
-            <Button type="button" variant="ghost" onClick={handleResetFilters}>
-              <FilterX className="size-4" />
-              Atur Ulang
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tagihan</TableHead>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Proyek</TableHead>
-                  <TableHead>Nominal</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Referensi</TableHead>
-                  <TableHead className="w-[220px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {sortedPayments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>
-                      <p className="font-medium">{payment.invoiceNumber}</p>
-                    </TableCell>
-
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{payment.clientName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {payment.clientCompany ?? "-"}
-                        </p>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      {payment.projectName ? (
-                        <div>
-                          <p className="font-medium">{payment.projectName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {payment.projectCode}
-                          </p>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-
-                    <TableCell>{formatCurrency(payment.amount)}</TableCell>
-
-                    <TableCell>{formatDate(payment.paymentDate)}</TableCell>
-
-                    <TableCell>{getBusinessLabel(payment.method)}</TableCell>
-
-                    <TableCell>
-                      <Badge variant={getStatusVariant(payment.status)}>
-                        {getBusinessLabel(payment.status)}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell>{payment.referenceNumber ?? "-"}</TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCancel(payment)}
-                          disabled={isPending || payment.status === "CANCELLED"}
-                        >
-                          <XCircle className="size-4" />
-                          Batalkan
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {sortedPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="h-32 text-center text-sm text-muted-foreground"
-                    >
-                      Belum ada pembayaran.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-            <p>
-              Menampilkan {payments.length} dari {pagination.totalItems} pembayaran
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page <= 1}
-                onClick={() => goToPage(pagination.page - 1)}
-              >
-                <ChevronLeft className="size-4" />
-                Sebelumnya
-              </Button>
-
-              <span>
-                Halaman {pagination.page} / {pagination.totalPages}
-              </span>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => goToPage(pagination.page + 1)}
-              >
-                Berikutnya
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <PaymentManagementList
+        payments={payments}
+        clients={clients}
+        projects={projects}
+        methods={paymentMethods}
+        search={search}
+        status={status}
+        method={method}
+        clientId={clientId}
+        projectId={projectId}
+        pageSize={pageSize}
+        pagination={pagination}
+        isPending={isPending}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        onMethodChange={setMethod}
+        onClientIdChange={(value) => {
+          setClientId(value);
+          setProjectId("");
+        }}
+        onProjectIdChange={setProjectId}
+        onPageSizeChange={(value) => {
+          setPageSize(value);
+          updateQuery({
+            page: 1,
+            pageSize: value,
+          });
+        }}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+        onCancel={handleCancel}
+        onPageChange={goToPage}
+      />
     </div>
   );
 }
