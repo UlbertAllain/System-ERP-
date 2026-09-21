@@ -1,22 +1,12 @@
 "use client";
 
-import { getBusinessLabel } from "@/lib/ui/business-labels";
-
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Edit,
-  FilterX,
-  FileText,
   Loader2,
   Plus,
   Save,
-  Search,
-  Send,
   Trash2,
-  XCircle,
 } from "lucide-react";
 
 import {
@@ -31,7 +21,6 @@ import type { ClientListItem } from "@/types/client";
 import type { CompanySetting } from "@/types/company-setting";
 import type { InvoiceDetail, InvoiceListItem } from "@/types/invoice";
 import type { ProjectListItem } from "@/types/project";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,15 +31,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { InvoiceManagementList } from "@/features/finance/components/invoice-management-list";
 
 type InvoiceManagementClientProps = {
   invoices: InvoiceListItem[];
@@ -100,18 +82,6 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
   }).format(value);
 }
 
@@ -197,18 +167,6 @@ function mapInvoiceDetailToForm(invoice: InvoiceDetail): InvoiceFormState {
           }))
         : [createEmptyLineItem()],
   };
-}
-
-function getStatusVariant(status: string) {
-  if (status === "PAID") {
-    return "default";
-  }
-
-  if (status === "VOID") {
-    return "destructive";
-  }
-
-  return "outline";
 }
 
 export function InvoiceManagementClient({
@@ -532,260 +490,40 @@ export function InvoiceManagementClient({
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="size-5" />
-            Daftar Tagihan
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_160px_180px_220px_120px_auto_auto]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleApplyFilters();
-                  }
-                }}
-                placeholder="Cari tagihan, pelanggan, atau proyek"
-                className="pl-9"
-              />
-            </div>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Semua status</option>
-              <option value="DRAFT">DRAFT</option>
-              <option value="ISSUED">ISSUED</option>
-              <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
-              <option value="PAID">PAID</option>
-              <option value="OVERDUE">OVERDUE</option>
-              <option value="VOID">VOID</option>
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={clientId}
-              onChange={(event) => {
-                setClientId(event.target.value);
-                setProjectId("");
-              }}
-            >
-              <option value="">Semua pelanggan</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
-            >
-              <option value="">Semua proyek</option>
-              {projects
-                .filter((project) =>
-                  clientId ? project.clientId === clientId : true,
-                )
-                .map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.projectCode} - {project.name}
-                  </option>
-                ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(event.target.value);
-                updateQuery({
-                  page: 1,
-                  pageSize: event.target.value,
-                });
-              }}
-            >
-              <option value="10">10 rows</option>
-              <option value="20">20 rows</option>
-              <option value="50">50 rows</option>
-            </select>
-
-            <Button type="button" variant="outline" onClick={handleApplyFilters}>
-              <Search className="size-4" />
-              Terapkan
-            </Button>
-
-            <Button type="button" variant="ghost" onClick={handleResetFilters}>
-              <FilterX className="size-4" />
-              Atur Ulang
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tagihan</TableHead>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Proyek</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Total Tagihan</TableHead>
-                  <TableHead>Terbayar</TableHead>
-                  <TableHead>Remaining</TableHead>
-                  <TableHead>Jatuh Tempo</TableHead>
-                  <TableHead className="w-[260px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>
-                      <p className="font-medium">{invoice.invoiceNumber}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Terbit: {formatDate(invoice.issueDate)}
-                      </p>
-                    </TableCell>
-
-                    <TableCell>{invoice.clientName}</TableCell>
-
-                    <TableCell>
-                      <p className="font-medium">
-                        {invoice.projectCode ?? "-"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {invoice.projectName ?? "-"}
-                      </p>
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge variant={getStatusVariant(invoice.status)}>
-                        {getBusinessLabel(invoice.status)}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell>{formatCurrency(invoice.totalAmount)}</TableCell>
-                    <TableCell>{formatCurrency(invoice.paidAmount)}</TableCell>
-                    <TableCell>
-                      {formatCurrency(invoice.remainingAmount)}
-                    </TableCell>
-                    <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={saving || invoice.status !== "DRAFT"}
-                          onClick={() => handleEdit(invoice)}
-                        >
-                          {isLoadingDetail ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Edit className="size-4" />
-                          )}
-                          Ubah
-                        </Button>
-
-                        {invoice.status === "DRAFT" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={saving}
-                            onClick={() => handleIssue(invoice)}
-                          >
-                            <Send className="size-4" />
-                            Terbitkan
-                          </Button>
-                        ) : null}
-
-                        {invoice.status !== "DRAFT" &&
-                        invoice.status !== "VOID" &&
-                        invoice.paidAmount === 0 ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={saving}
-                            onClick={() => handleVoid(invoice)}
-                          >
-                            <XCircle className="size-4" />
-                            Batalkan
-                          </Button>
-                        ) : null}
-
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={saving || invoice.status !== "DRAFT"}
-                          onClick={() => handleDelete(invoice)}
-                        >
-                          <Trash2 className="size-4" />
-                          Hapus
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {invoices.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="h-32 text-center text-sm text-muted-foreground"
-                    >
-                      Belum ada tagihan.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-            <p>
-              Menampilkan {invoices.length} dari {pagination.totalItems} tagihan
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page <= 1}
-                onClick={() => goToPage(pagination.page - 1)}
-              >
-                <ChevronLeft className="size-4" />
-                Prev
-              </Button>
-
-              <span>
-                Halaman {pagination.page} / {pagination.totalPages}
-              </span>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => goToPage(pagination.page + 1)}
-              >
-                Berikutnya
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <InvoiceManagementList
+        invoices={invoices}
+        clients={clients}
+        projects={projects}
+        search={search}
+        status={status}
+        clientId={clientId}
+        projectId={projectId}
+        pageSize={pageSize}
+        pagination={pagination}
+        saving={saving}
+        isLoadingDetail={isLoadingDetail}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        onClientIdChange={(value) => {
+          setClientId(value);
+          setProjectId("");
+        }}
+        onProjectIdChange={setProjectId}
+        onPageSizeChange={(value) => {
+          setPageSize(value);
+          updateQuery({
+            page: 1,
+            pageSize: value,
+          });
+        }}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+        onEdit={handleEdit}
+        onIssue={handleIssue}
+        onVoid={handleVoid}
+        onDelete={handleDelete}
+        onPageChange={goToPage}
+      />
 
       <Dialog
         open={isFormOpen}
