@@ -18,6 +18,11 @@ import type {
 import type { TaskDetail } from "@/types/task";
 import { getTaskByIdService } from "@/features/projects/services/task-service";
 import { timestampToDate } from "@/lib/domain/firestore-value";
+import {
+  findTaskCommentById,
+  listTaskComments,
+  normalizeTaskCommentDocument,
+} from "@/features/projects/repositories/task-comment-repository";
 
 type CreateTaskCommentParams = {
   actor: CurrentUser;
@@ -36,27 +41,6 @@ type TaskCommentIdParams = {
   id: string;
   canDeleteAny: boolean;
 };
-
-function normalizeTaskCommentDocument(
-  id: string,
-  data: DocumentData,
-): TaskCommentListItem {
-  return {
-    id,
-    taskId: String(data.taskId ?? ""),
-    taskTitle: String(data.taskTitle ?? ""),
-    projectId: String(data.projectId ?? ""),
-    projectName: String(data.projectName ?? ""),
-    projectCode: String(data.projectCode ?? ""),
-    userId: String(data.userId ?? ""),
-    userName: String(data.userName ?? ""),
-    userEmail: String(data.userEmail ?? ""),
-    body: String(data.body ?? ""),
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
-}
 
 function normalizeTaskForCommentOrThrow(
   id: string,
@@ -124,29 +108,23 @@ function normalizeCommentOrThrow(
 export async function listTaskCommentsService(
   taskId: string,
 ): Promise<TaskCommentListItem[]> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.taskComments)
-    .where("taskId", "==", taskId)
-    .orderBy("createdAt", "asc")
-    .get();
-
-  return querySnap.docs
-    .map((doc) => normalizeTaskCommentDocument(doc.id, doc.data()))
-    .filter((comment) => comment.deletedAt === null);
+  return listTaskComments(taskId);
 }
 
 export async function getTaskCommentByIdService(
   id: string,
 ): Promise<TaskCommentDetail> {
-  const commentSnap = await getDb()
-    .collection(COLLECTIONS.taskComments)
-    .doc(id)
-    .get();
+  const comment = await findTaskCommentById(id);
 
-  return normalizeCommentOrThrow(
-    commentSnap.id,
-    commentSnap.exists ? commentSnap.data() : undefined,
-  );
+  if (!comment || comment.deletedAt) {
+    throw new AppError(
+      "Komentar task tidak ditemukan.",
+      404,
+      "TASK_COMMENT_NOT_FOUND",
+    );
+  }
+
+  return comment;
 }
 
 export async function createTaskCommentService({

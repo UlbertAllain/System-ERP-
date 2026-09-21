@@ -20,7 +20,6 @@ import type {
 } from "@/types/task";
 
 import {
-  timestampToDate,
   normalizeNullableString,
   normalizeSearchText,
   dateStringToTimestamp,
@@ -29,6 +28,12 @@ import {
   assertValidTaskDateRange,
   assertValidTaskStatusTransition,
 } from "@/modules/projects/tasks/task-domain";
+import {
+  findTaskById,
+  listTasks,
+  listTasksPaginated,
+  normalizeTaskDocument,
+} from "@/features/projects/repositories/task-repository";
 type CreateTaskParams = {
   actor: CurrentUser;
   projectId: string;
@@ -189,183 +194,25 @@ function normalizeEmployeeSnapshotOrThrow(
 }
 
 async function getTaskDocumentOrThrow(id: string): Promise<TaskDetail> {
-  const taskSnap = await getDb()
-    .collection(COLLECTIONS.tasks)
-    .doc(id)
-    .get();
+  const task = await findTaskById(id);
 
-  if (!taskSnap.exists) {
+  if (!task) {
     throw new AppError("Task tidak ditemukan.", 404, "TASK_NOT_FOUND");
   }
 
-  return normalizeTaskDocument(taskSnap.id, taskSnap.data() ?? {});
+  return task;
 }
 
-function normalizeTaskDocument(id: string, data: DocumentData): TaskListItem {
-  return {
-    id,
-
-    projectId: String(data.projectId ?? ""),
-    projectName: String(data.projectName ?? ""),
-    projectCode: String(data.projectCode ?? ""),
-
-    milestoneId: data.milestoneId ?? null,
-    milestoneTitle: data.milestoneTitle ?? null,
-
-    assigneeEmployeeId: data.assigneeEmployeeId ?? null,
-    assigneeName: data.assigneeName ?? null,
-    assigneeUserId: data.assigneeUserId ?? null,
-
-    title: String(data.title ?? ""),
-    description: data.description ?? null,
-    status: data.status as TaskStatus,
-    priority: data.priority as TaskPriority,
-    order: Number(data.order ?? 0),
-
-    startDate: timestampToDate(data.startDate),
-    dueDate: timestampToDate(data.dueDate),
-    completedAt: timestampToDate(data.completedAt),
-
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
+export async function listTasksService(
+  input: ListTasksParams = {},
+): Promise<TaskListItem[]> {
+  return listTasks(input);
 }
 
-export async function listTasksService({
-  projectId,
-  milestoneId,
-  assigneeEmployeeId,
-}: ListTasksParams = {}): Promise<TaskListItem[]> {
-  const baseQuery = getDb().collection(COLLECTIONS.tasks);
-
-  let querySnap;
-
-  if (projectId) {
-    querySnap = await baseQuery.where("projectId", "==", projectId).get();
-  } else if (milestoneId) {
-    querySnap = await baseQuery.where("milestoneId", "==", milestoneId).get();
-  } else if (assigneeEmployeeId) {
-    querySnap = await baseQuery
-      .where("assigneeEmployeeId", "==", assigneeEmployeeId)
-      .get();
-  } else {
-    querySnap = await baseQuery.get();
-  }
-
-  return querySnap.docs
-    .map((doc) => normalizeTaskDocument(doc.id, doc.data()))
-    .filter((task) => task.deletedAt === null)
-    .filter((task) => {
-      if (projectId && task.projectId !== projectId) return false;
-      if (milestoneId && task.milestoneId !== milestoneId) return false;
-      if (
-        assigneeEmployeeId &&
-        task.assigneeEmployeeId !== assigneeEmployeeId
-      ) {
-        return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (a.projectCode === b.projectCode) {
-        return a.order - b.order;
-      }
-
-      return a.projectCode.localeCompare(b.projectCode);
-    });
-}
-
-export async function listTasksPaginatedService({
-  projectId,
-  milestoneId,
-  assigneeEmployeeId,
-  search,
-  status,
-  priority,
-  page,
-  pageSize,
-}: ListTasksPaginatedParams): Promise<PaginatedResult<TaskListItem>> {
-  const normalizedSearch = search?.trim().toLowerCase();
-  const collection = getDb().collection(COLLECTIONS.tasks);
-  const offset = (page - 1) * pageSize;
-
-  if (normalizedSearch) {
-    const querySnap = await collection
-      .orderBy("searchText")
-      .startAt(normalizedSearch)
-      .endAt(`${normalizedSearch}\uf8ff`)
-      .get();
-
-    const matchedTasks = querySnap.docs
-      .map((doc) => normalizeTaskDocument(doc.id, doc.data()))
-      .filter((task) => task.deletedAt === null)
-      .filter((task) => (projectId ? task.projectId === projectId : true))
-      .filter((task) => (milestoneId ? task.milestoneId === milestoneId : true))
-      .filter((task) =>
-        assigneeEmployeeId
-          ? task.assigneeEmployeeId === assigneeEmployeeId
-          : true,
-      )
-      .filter((task) => (status ? task.status === status : true))
-      .filter((task) => (priority ? task.priority === priority : true));
-    const totalItems = matchedTasks.length;
-    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
-
-    return {
-      items: matchedTasks.slice(offset, offset + pageSize),
-      totalItems,
-      page,
-      pageSize,
-      totalPages,
-    };
-  }
-
-  let baseQuery: FirebaseFirestore.Query = collection.where(
-    "deletedAt",
-    "==",
-    null,
-  );
-
-  if (projectId) {
-    baseQuery = baseQuery.where("projectId", "==", projectId);
-  }
-
-  if (milestoneId) {
-    baseQuery = baseQuery.where("milestoneId", "==", milestoneId);
-  }
-
-  if (assigneeEmployeeId) {
-    baseQuery = baseQuery.where("assigneeEmployeeId", "==", assigneeEmployeeId);
-  }
-
-  if (status) {
-    baseQuery = baseQuery.where("status", "==", status);
-  }
-
-  if (priority) {
-    baseQuery = baseQuery.where("priority", "==", priority);
-  }
-
-  const countSnap = await baseQuery.count().get();
-  const totalItems = countSnap.data().count;
-  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
-  const querySnap = await baseQuery
-    .orderBy("createdAt", "desc")
-    .offset(offset)
-    .limit(pageSize)
-    .get();
-
-  return {
-    items: querySnap.docs.map((doc) =>
-      normalizeTaskDocument(doc.id, doc.data()),
-    ),
-    totalItems,
-    page,
-    pageSize,
-    totalPages,
-  };
+export async function listTasksPaginatedService(
+  input: ListTasksPaginatedParams,
+): Promise<PaginatedResult<TaskListItem>> {
+  return listTasksPaginated(input);
 }
 
 export async function getTaskByIdService(id: string): Promise<TaskDetail> {

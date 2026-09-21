@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import type { DocumentData, DocumentSnapshot } from "firebase-admin/firestore";
 
 import { getAuditLogDocument } from "@/lib/audit/audit-log";
-import { timestampToDate } from "@/lib/domain/firestore-value";
 import { AppError } from "@/lib/errors/app-error";
 import {
   COLLECTIONS,
@@ -18,6 +17,11 @@ import type {
   ProjectMemberRole,
   ProjectMemberStatus,
 } from "@/types/project-member";
+import {
+  findProjectMemberById,
+  listProjectMembers,
+  normalizeProjectMemberDocument,
+} from "@/features/projects/repositories/project-member-repository";
 
 type AddProjectMemberParams = {
   actor: CurrentUser;
@@ -54,28 +58,6 @@ type EmployeeSnapshot = {
   fullName: string;
   userId: string | null;
 };
-
-function normalizeProjectMemberDocument(
-  id: string,
-  data: DocumentData,
-): ProjectMemberListItem {
-  return {
-    id,
-    projectId: String(data.projectId ?? ""),
-    projectName: String(data.projectName ?? ""),
-    projectCode: String(data.projectCode ?? ""),
-    employeeId: String(data.employeeId ?? ""),
-    employeeName: String(data.employeeName ?? ""),
-    userId: data.userId ?? null,
-    role: data.role as ProjectMemberRole,
-    status: data.status as ProjectMemberStatus,
-    joinedAt: timestampToDate(data.joinedAt),
-    leftAt: timestampToDate(data.leftAt),
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
-}
 
 function normalizeProjectSnapshotOrThrow(
   projectSnap: DocumentSnapshot<DocumentData>,
@@ -183,32 +165,23 @@ function assertPicMembershipMayChange(
 export async function listProjectMembersService({
   projectId,
 }: ListProjectMembersParams = {}): Promise<ProjectMemberListItem[]> {
-  const baseQuery = getDb().collection(COLLECTIONS.projectMembers);
-  const querySnap = projectId
-    ? await baseQuery.where("projectId", "==", projectId).get()
-    : await baseQuery.get();
-
-  return querySnap.docs
-    .map((doc) => normalizeProjectMemberDocument(doc.id, doc.data()))
-    .filter((member) => member.deletedAt === null)
-    .sort((a, b) => {
-      if (a.projectCode === b.projectCode) {
-        return a.employeeName.localeCompare(b.employeeName);
-      }
-
-      return a.projectCode.localeCompare(b.projectCode);
-    });
+  return listProjectMembers(projectId);
 }
 
 export async function getProjectMemberByIdService(
   id: string,
 ): Promise<ProjectMemberDetail> {
-  const memberSnap = await getDb()
-    .collection(COLLECTIONS.projectMembers)
-    .doc(id)
-    .get();
+  const member = await findProjectMemberById(id);
 
-  return normalizeMemberSnapshotOrThrow(memberSnap);
+  if (!member || member.deletedAt) {
+    throw new AppError(
+      "Anggota proyek tidak ditemukan.",
+      404,
+      "PROJECT_MEMBER_NOT_FOUND",
+    );
+  }
+
+  return member;
 }
 
 export async function addProjectMemberService({

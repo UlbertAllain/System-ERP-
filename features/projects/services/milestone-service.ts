@@ -6,7 +6,6 @@ import { getAuditLogDocument } from "@/lib/audit/audit-log";
 import {
   dateStringToTimestamp,
   normalizeNullableString,
-  timestampToDate,
 } from "@/lib/domain/firestore-value";
 import { AppError } from "@/lib/errors/app-error";
 import {
@@ -22,6 +21,11 @@ import type {
   MilestoneStatus,
 } from "@/types/milestone";
 import { assertValidMilestoneStatusTransition } from "@/modules/projects/milestones/milestone-domain";
+import {
+  findMilestoneById,
+  listMilestones,
+  normalizeMilestoneDocument,
+} from "@/features/projects/repositories/milestone-repository";
 
 const OPEN_TASK_STATUSES = new Set([
   "TODO",
@@ -88,28 +92,6 @@ function assertValidMilestoneDateRange(
       "INVALID_MILESTONE_DATE_RANGE",
     );
   }
-}
-
-function normalizeMilestoneDocument(
-  id: string,
-  data: DocumentData,
-): MilestoneListItem {
-  return {
-    id,
-    projectId: String(data.projectId ?? ""),
-    projectName: String(data.projectName ?? ""),
-    projectCode: String(data.projectCode ?? ""),
-    title: String(data.title ?? ""),
-    description: data.description ?? null,
-    status: data.status as MilestoneStatus,
-    order: Number(data.order ?? 0),
-    startDate: timestampToDate(data.startDate),
-    dueDate: timestampToDate(data.dueDate),
-    completedAt: timestampToDate(data.completedAt),
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
 }
 
 function normalizeProjectSnapshotOrThrow(
@@ -187,32 +169,19 @@ function assertNoOpenTasksForTerminalStatus(
 export async function listMilestonesService({
   projectId,
 }: ListMilestonesParams = {}): Promise<MilestoneListItem[]> {
-  const baseQuery = getDb().collection(COLLECTIONS.milestones);
-  const querySnap = projectId
-    ? await baseQuery.where("projectId", "==", projectId).get()
-    : await baseQuery.get();
-
-  return querySnap.docs
-    .map((doc) => normalizeMilestoneDocument(doc.id, doc.data()))
-    .filter((milestone) => milestone.deletedAt === null)
-    .sort((a, b) => {
-      if (a.projectCode === b.projectCode) {
-        return a.order - b.order;
-      }
-
-      return a.projectCode.localeCompare(b.projectCode);
-    });
+  return listMilestones(projectId);
 }
 
 export async function getMilestoneByIdService(
   id: string,
 ): Promise<MilestoneDetail> {
-  const milestoneSnap = await getDb()
-    .collection(COLLECTIONS.milestones)
-    .doc(id)
-    .get();
+  const milestone = await findMilestoneById(id);
 
-  return normalizeMilestoneSnapshotOrThrow(milestoneSnap);
+  if (!milestone || milestone.deletedAt) {
+    throw new AppError("Milestone tidak ditemukan.", 404, "MILESTONE_NOT_FOUND");
+  }
+
+  return milestone;
 }
 
 export async function createMilestoneService({
