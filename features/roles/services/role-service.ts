@@ -1,7 +1,5 @@
 import "server-only";
 
-import type { DocumentData } from "firebase-admin/firestore";
-
 import { COLLECTIONS, getDb, serverTimestamp } from "@/lib/firebase/firestore";
 import { AppError } from "@/lib/errors/app-error";
 import { getAuditLogDocument } from "@/lib/audit/audit-log";
@@ -12,6 +10,11 @@ import type {
   RolePermissionEditorData,
 } from "@/types/role";
 import type { PermissionSlug, RoleSlug } from "@/constants/permissions";
+import {
+  listPermissions,
+  listRoles,
+  normalizeRoleDocument,
+} from "@/features/roles/repositories/role-repository";
 
 type UpdateRolePermissionsParams = {
   actor: CurrentUser;
@@ -19,73 +22,16 @@ type UpdateRolePermissionsParams = {
   permissionSlugs: PermissionSlug[];
 };
 
-function timestampToDate(value: unknown): Date | null {
-  if (
-    value &&
-    typeof value === "object" &&
-    "toDate" in value &&
-    typeof value.toDate === "function"
-  ) {
-    return value.toDate();
-  }
-
-  return null;
-}
-
 function getPermissionIdFromSlug(slug: string): string {
   return slug.replace(/\./g, "_");
 }
 
-function normalizePermissionDocument(
-  id: string,
-  data: DocumentData,
-): PermissionListItem {
-  return {
-    id,
-    name: String(data.name ?? ""),
-    slug: data.slug as PermissionSlug,
-    module: String(data.module ?? ""),
-    description: data.description ?? null,
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-  };
-}
-
-function normalizeRoleDocument(id: string, data: DocumentData): RoleListItem {
-  return {
-    id,
-    name: String(data.name ?? ""),
-    slug: data.slug as RoleSlug,
-    description: data.description ?? null,
-    isSystem: Boolean(data.isSystem),
-    permissionIds: Array.isArray(data.permissionIds) ? data.permissionIds : [],
-    permissionSlugs: Array.isArray(data.permissionSlugs)
-      ? data.permissionSlugs
-      : [],
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-  };
-}
-
 export async function listPermissionsService(): Promise<PermissionListItem[]> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.permissions)
-    .orderBy("module", "asc")
-    .orderBy("slug", "asc")
-    .get();
-
-  return querySnap.docs.map((doc) =>
-    normalizePermissionDocument(doc.id, doc.data()),
-  );
+  return listPermissions();
 }
 
 export async function listRolesService(): Promise<RoleListItem[]> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.roles)
-    .orderBy("name", "asc")
-    .get();
-
-  return querySnap.docs.map((doc) => normalizeRoleDocument(doc.id, doc.data()));
+  return listRoles();
 }
 
 export async function getRolePermissionEditorDataService(): Promise<RolePermissionEditorData> {
