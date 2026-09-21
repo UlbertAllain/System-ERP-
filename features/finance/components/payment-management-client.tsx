@@ -1,7 +1,5 @@
 "use client";
 
-import { getBusinessLabel } from "@/lib/ui/business-labels";
-
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -21,7 +19,7 @@ import type {
 } from "@/types/payment";
 import type { ProjectListItem } from "@/types/project";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
