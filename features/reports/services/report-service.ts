@@ -2,12 +2,12 @@ import "server-only";
 
 import { addMoney, subtractMoney } from "@/lib/domain/money";
 
-import { listClientsService } from "@/features/clients/services/client-service";
-import { listEmployeesService } from "@/features/employees/services/employee-service";
-import { listExpensesService } from "@/features/finance/services/expense-service";
-import { listInvoicesService } from "@/features/finance/services/invoice-service";
-import { listProjectsService } from "@/features/projects/services/project-service";
-import { listTasksService } from "@/features/projects/services/task-service";
+import { listClients } from "@/features/clients/repositories/client-repository";
+import { listEmployees } from "@/features/employees/repositories/employee-repository";
+import { listExpenses } from "@/features/finance/repositories/expense-repository";
+import { listInvoices } from "@/features/finance/repositories/invoice-repository";
+import { listProjects } from "@/features/projects/repositories/project-repository";
+import { listTasks } from "@/features/projects/repositories/task-repository";
 import type {
   ReportsDashboardDateFilter,
   ReportsDashboardSummary,
@@ -95,12 +95,12 @@ export async function getReportsDashboardSummaryService(
 
   const [invoices, expenses, projects, tasks, clients, employees] =
     await Promise.all([
-      listInvoicesService({}),
-      listExpensesService({}),
-      listProjectsService(),
-      listTasksService({}),
-      listClientsService(),
-      listEmployeesService(),
+      listInvoices({}),
+      listExpenses({}),
+      listProjects(),
+      listTasks({}),
+      listClients(),
+      listEmployees(),
     ]);
 
   const filteredInvoices = hasDateFilter

@@ -2,9 +2,9 @@ import "server-only";
 
 import { addMoney, subtractMoney } from "@/lib/domain/money";
 
-import { listExpensesService } from "@/features/finance/services/expense-service";
-import { listInvoicesService } from "@/features/finance/services/invoice-service";
-import { listPaymentsService } from "@/features/finance/services/payment-service";
+import { listExpenses } from "@/features/finance/repositories/expense-repository";
+import { listInvoices } from "@/features/finance/repositories/invoice-repository";
+import { listPayments } from "@/features/finance/repositories/payment-repository";
 import type {
   FinanceDashboardDateFilter,
   FinanceDashboardSummary,
@@ -76,9 +76,9 @@ export async function getFinanceDashboardSummaryService(
   const to = getEndOfDate(filter.to);
 
   const [invoices, payments, expenses] = await Promise.all([
-    listInvoicesService({}),
-    listPaymentsService({}),
-    listExpensesService({}),
+    listInvoices({}),
+    listPayments({}),
+    listExpenses({}),
   ]);
 
   const filteredInvoices =
