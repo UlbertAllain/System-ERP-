@@ -5,19 +5,8 @@ import { getBusinessLabel } from "@/lib/ui/business-labels";
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Edit,
-  FilterX,
   Loader2,
   Plus,
-  Receipt,
-  Search,
-  Send,
-  Trash2,
-  Wallet,
-  XCircle,
 } from "lucide-react";
 
 import {
@@ -35,9 +24,7 @@ import type {
   ExpenseStatus,
 } from "@/types/expense";
 import type { ProjectListItem } from "@/types/project";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -47,16 +34,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { CompanySetting } from "@/types/company-setting";
+import { ExpenseManagementList } from "@/features/finance/components/expense-management-list";
 
 type ExpenseManagementClientProps = {
   expenses: ExpenseListItem[];
@@ -135,32 +115,12 @@ function parseNumber(value: string) {
   return parsed;
 }
 
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(value);
-}
-
 function formatDateInput(value: Date | null): string {
   if (!value) {
     return "";
   }
 
   return value.toISOString().slice(0, 10);
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 function generateExpenseNumber(prefix: string) {
@@ -173,18 +133,6 @@ function generateExpenseNumber(prefix: string) {
     .padStart(4, "0");
 
   return `${normalizedPrefix}-${year}${month}-${random}`;
-}
-
-function getStatusVariant(status: ExpenseListItem["status"]) {
-  if (status === "PAID" || status === "APPROVED") {
-    return "secondary" as const;
-  }
-
-  if (status === "REJECTED") {
-    return "destructive" as const;
-  }
-
-  return "outline" as const;
 }
 
 export function ExpenseManagementClient({
@@ -212,10 +160,6 @@ export function ExpenseManagementClient({
       .filter((project) => project.status !== "ARCHIVED")
       .sort((a, b) => a.projectCode.localeCompare(b.projectCode));
   }, [projects]);
-
-  const sortedExpenses = useMemo(() => {
-    return expenses;
-  }, [expenses]);
 
   function updateQuery(next: {
     search?: string;
@@ -679,272 +623,39 @@ export function ExpenseManagementClient({
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="size-5" />
-            Expenses
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_150px_170px_220px_120px_auto_auto]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleApplyFilters();
-                  }
-                }}
-                placeholder="Cari pengeluaran, pemasok, atau proyek"
-                className="pl-9"
-              />
-            </div>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Semua status</option>
-              {expenseStatuses.map((expenseStatus) => (
-                <option key={expenseStatus} value={expenseStatus}>
-                  {getBusinessLabel(expenseStatus)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-            >
-              <option value="">Semua kategori</option>
-              {expenseCategories.map((expenseCategory) => (
-                <option key={expenseCategory} value={expenseCategory}>
-                  {getBusinessLabel(expenseCategory)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
-            >
-              <option value="">Semua proyek</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.projectCode} - {project.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(event.target.value);
-                updateQuery({
-                  page: 1,
-                  pageSize: event.target.value,
-                });
-              }}
-            >
-              <option value="10">10 rows</option>
-              <option value="20">20 rows</option>
-              <option value="50">50 rows</option>
-            </select>
-
-            <Button type="button" variant="outline" onClick={handleApplyFilters}>
-              <Search className="size-4" />
-              Terapkan
-            </Button>
-
-            <Button type="button" variant="ghost" onClick={handleResetFilters}>
-              <FilterX className="size-4" />
-              Atur Ulang
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pengeluaran</TableHead>
-                  <TableHead>Proyek</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Nominal</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Pemasok</TableHead>
-                  <TableHead className="w-[360px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {sortedExpenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{expense.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {expense.expenseNumber}
-                        </p>
-                        {expense.rejectedReason ? (
-                          <p className="mt-1 text-xs text-destructive">
-                            Alasan ditolak: {expense.rejectedReason}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      {expense.projectName ? (
-                        <div>
-                          <p className="font-medium">{expense.projectName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {expense.projectCode}
-                          </p>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-
-                    <TableCell>{getBusinessLabel(expense.category)}</TableCell>
-
-                    <TableCell>
-                      <Badge variant={getStatusVariant(expense.status)}>
-                        {getBusinessLabel(expense.status)}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell>{formatCurrency(expense.amount)}</TableCell>
-
-                    <TableCell>{formatDate(expense.expenseDate)}</TableCell>
-
-                    <TableCell>{expense.vendorName ?? "-"}</TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditDialog(expense)}
-                          disabled={isPending || expense.status === "PAID"}
-                        >
-                          <Edit className="size-4" />
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSubmitExpense(expense)}
-                          disabled={
-                            isPending ||
-                            !["DRAFT", "REJECTED"].includes(expense.status)
-                          }
-                        >
-                          <Send className="size-4" />
-                          Submit
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleApprove(expense)}
-                          disabled={isPending || expense.status !== "SUBMITTED"}
-                        >
-                          <CheckCircle2 className="size-4" />
-                          Approve
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleReject(expense)}
-                          disabled={isPending || expense.status !== "SUBMITTED"}
-                        >
-                          <XCircle className="size-4" />
-                          Reject
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handlePaid(expense)}
-                          disabled={isPending || expense.status !== "APPROVED"}
-                        >
-                          <Wallet className="size-4" />
-                          Paid
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(expense)}
-                          disabled={isPending || expense.status === "PAID"}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {sortedExpenses.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="h-32 text-center text-sm text-muted-foreground"
-                    >
-                      Belum ada pengeluaran.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-            <p>
-              Menampilkan {expenses.length} dari {pagination.totalItems} pengeluaran
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page <= 1}
-                onClick={() => goToPage(pagination.page - 1)}
-              >
-                <ChevronLeft className="size-4" />
-                Prev
-              </Button>
-
-              <span>
-                Halaman {pagination.page} / {pagination.totalPages}
-              </span>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => goToPage(pagination.page + 1)}
-              >
-                Berikutnya
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ExpenseManagementList
+        expenses={expenses}
+        projects={projects}
+        statuses={expenseStatuses}
+        categories={expenseCategories}
+        search={search}
+        status={status}
+        category={category}
+        projectId={projectId}
+        pageSize={pageSize}
+        pagination={pagination}
+        isPending={isPending}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        onCategoryChange={setCategory}
+        onProjectIdChange={setProjectId}
+        onPageSizeChange={(value) => {
+          setPageSize(value);
+          updateQuery({
+            page: 1,
+            pageSize: value,
+          });
+        }}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+        onEdit={openEditDialog}
+        onSubmit={handleSubmitExpense}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onPaid={handlePaid}
+        onDelete={handleDelete}
+        onPageChange={goToPage}
+      />
     </div>
   );
 }
