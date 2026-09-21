@@ -25,6 +25,34 @@ export type ListInvoicesPaginatedRepositoryParams =
     pageSize: number;
   };
 
+
+export type DateRangeRepositoryParams = {
+  from?: Date | null;
+  to?: Date | null;
+};
+
+export async function listInvoicesByIssueDateRange({
+  from,
+  to,
+}: DateRangeRepositoryParams): Promise<InvoiceListItem[]> {
+  let query: FirebaseFirestore.Query = getDb().collection(COLLECTIONS.invoices);
+
+  if (from) {
+    query = query.where("issueDate", ">=", from);
+  }
+
+  if (to) {
+    query = query.where("issueDate", "<=", to);
+  }
+
+  const querySnap = await query.orderBy("issueDate", "desc").get();
+
+  return querySnap.docs
+    .map((doc) => normalizeInvoiceDocument(doc.id, doc.data()))
+    .filter((invoice) => invoice.deletedAt === null)
+    .map(toInvoiceListItem);
+}
+
 export async function findInvoiceById(
   id: string,
 ): Promise<InvoiceDetail | null> {
