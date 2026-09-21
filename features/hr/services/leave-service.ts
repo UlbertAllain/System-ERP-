@@ -14,7 +14,6 @@ import type { CurrentUser } from "@/types/auth";
 import type {
   LeaveRequestDetail,
   LeaveRequestListItem,
-  LeaveRequestStatus,
   LeaveRequestType,
 } from "@/types/leave";
 import {
