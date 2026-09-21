@@ -6,10 +6,8 @@ import { TASK_STATUS_TRANSITIONS } from "@/modules/projects/tasks/task-domain";
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  FilterX,
   Loader2,
   Plus,
-  Search,
 } from "lucide-react";
 
 import {
@@ -42,6 +40,7 @@ import {
   type TaskCommentPermissions,
 } from "@/features/projects/components/task-comments-dialog";
 import { TaskManagementTable } from "@/features/projects/components/task-management-table";
+import { TaskManagementFilters } from "@/features/projects/components/task-management-filters";
 
 type TaskManagementClientProps = {
   tasks: TaskListItem[];
@@ -674,84 +673,23 @@ export function TaskManagementClient({
         </div>
       ) : null}
 
-      <Card>
-        <CardContent className="grid gap-3 p-4 xl:grid-cols-[1fr_220px_170px_170px_140px_auto_auto]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  handleApplyFilters();
-                }
-              }}
-              placeholder="Cari judul, proyek, tahapan, atau penanggung jawab"
-              className="pl-9"
-            />
-          </div>
-
-          <select
-            className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-            value={filterProjectId}
-            onChange={(event) => setFilterProjectId(event.target.value)}
-          >
-            <option value="">Semua proyek</option>
-            {activeProjects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.projectCode} - {project.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-            value={filterStatus}
-            onChange={(event) => setFilterStatus(event.target.value)}
-          >
-            <option value="">Semua status</option>
-            {taskStatuses.map((status) => (
-              <option key={status} value={status}>
-                {getBusinessLabel(status)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-            value={filterPriority}
-            onChange={(event) => setFilterPriority(event.target.value)}
-          >
-            <option value="">Semua prioritas</option>
-            {taskPriorities.map((priority) => (
-              <option key={priority} value={priority}>
-                {getBusinessLabel(priority)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-            value={pageSize}
-            onChange={(event) => setPageSize(event.target.value)}
-          >
-            {[10, 20, 50, 100].map((size) => (
-              <option key={size} value={String(size)}>
-                {size} / halaman
-              </option>
-            ))}
-          </select>
-
-          <Button type="button" onClick={handleApplyFilters}>
-            Terapkan
-          </Button>
-
-          <Button type="button" variant="outline" onClick={handleResetFilters}>
-            <FilterX className="size-4" />
-            Atur Ulang
-          </Button>
-        </CardContent>
-      </Card>
+      <TaskManagementFilters
+        projects={activeProjects}
+        statuses={taskStatuses}
+        priorities={taskPriorities}
+        search={search}
+        projectId={filterProjectId}
+        status={filterStatus}
+        priority={filterPriority}
+        pageSize={pageSize}
+        onSearchChange={setSearch}
+        onProjectIdChange={setFilterProjectId}
+        onStatusChange={setFilterStatus}
+        onPriorityChange={setFilterPriority}
+        onPageSizeChange={setPageSize}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+      />
 
       {!canCreateTask ? (
         <Card>
