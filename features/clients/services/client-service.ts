@@ -1,29 +1,32 @@
 import "server-only";
 
-import type { DocumentData } from "firebase-admin/firestore";
 import { deleteCloudinaryImage } from "@/lib/cloudinary/server";
-import type { ImageAsset } from "@/types/common";
-import type { PaginatedResult } from "@/types/common";
-import {
-  COLLECTIONS,
-  createDocumentId,
-  getDb,
-  serverTimestamp,
-} from "@/lib/firebase/firestore";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { AppError } from "@/lib/errors/app-error";
+import {
+  normalizeNullableString,
+  normalizeSearchText,
+} from "@/lib/domain/firestore-value";
+import type { ImageAsset, PaginatedResult } from "@/types/common";
 import type { CurrentUser } from "@/types/auth";
 import type {
   ClientDetail,
   ClientListItem,
   ClientStatus,
 } from "@/types/client";
-
 import {
-  timestampToDate,
-  normalizeNullableString,
-  normalizeSearchText,
-} from "@/lib/domain/firestore-value";
+  archiveClient,
+  createClientDocumentId,
+  findClientByEmail,
+  findClientById,
+  insertClient,
+  listClients,
+  listClientsPaginated,
+  restoreClient,
+  updateClient,
+  updateClientLogo,
+} from "@/features/clients/repositories/client-repository";
+
 type CreateClientParams = {
   actor: CurrentUser;
   name: string;
@@ -39,6 +42,7 @@ type UpdateClientParams = CreateClientParams & {
   id: string;
   status: ClientStatus;
 };
+
 type UpdateClientLogoParams = {
   actor: CurrentUser;
   id: string;
@@ -61,139 +65,41 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function normalizeClientDocument(
-  id: string,
-  data: DocumentData,
-): ClientListItem {
-  return {
-    id,
-    name: String(data.name ?? ""),
-    email: String(data.email ?? ""),
-    phone: data.phone ?? null,
-    company: data.company ?? null,
-    website: data.website ?? null,
-    address: data.address ?? null,
-    logo: data.logo ?? null,
-    status: data.status as ClientStatus,
-    notes: data.notes ?? null,
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
-}
-
 async function assertClientEmailUnique(
   email: string,
   ignoredClientId?: string,
 ): Promise<void> {
-  const normalizedEmail = normalizeEmail(email);
+  const existingClient = await findClientByEmail(normalizeEmail(email));
 
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.clients)
-    .where("email", "==", normalizedEmail)
-    .limit(1)
-    .get();
-
-  if (querySnap.empty) {
+  if (!existingClient || existingClient.id === ignoredClientId) {
     return;
   }
 
-  const existingDoc = querySnap.docs[0];
-
-  if (existingDoc.id !== ignoredClientId) {
-    throw new AppError(
-      "Email client sudah digunakan.",
-      409,
-      "CLIENT_EMAIL_ALREADY_USED",
-    );
-  }
+  throw new AppError(
+    "Email client sudah digunakan.",
+    409,
+    "CLIENT_EMAIL_ALREADY_USED",
+  );
 }
 
 async function getClientDocumentOrThrow(id: string): Promise<ClientDetail> {
-  const clientSnap = await getDb()
-    .collection(COLLECTIONS.clients)
-    .doc(id)
-    .get();
+  const client = await findClientById(id);
 
-  if (!clientSnap.exists) {
+  if (!client) {
     throw new AppError("Client tidak ditemukan.", 404, "CLIENT_NOT_FOUND");
   }
 
-  return normalizeClientDocument(clientSnap.id, clientSnap.data() ?? {});
+  return client;
 }
 
 export async function listClientsService(): Promise<ClientListItem[]> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.clients)
-    .orderBy("createdAt", "desc")
-    .get();
-
-  return querySnap.docs
-    .map((doc) => normalizeClientDocument(doc.id, doc.data()))
-    .filter((client) => client.deletedAt === null);
+  return listClients();
 }
 
-export async function listClientsPaginatedService({
-  search,
-  status,
-  page,
-  pageSize,
-}: ListClientsPaginatedParams): Promise<PaginatedResult<ClientListItem>> {
-  const normalizedSearch = search?.trim().toLowerCase();
-  const collection = getDb().collection(COLLECTIONS.clients);
-  const offset = (page - 1) * pageSize;
-
-  if (normalizedSearch) {
-    const querySnap = await collection
-      .orderBy("searchText")
-      .startAt(normalizedSearch)
-      .endAt(`${normalizedSearch}\uf8ff`)
-      .get();
-
-    const matchedClients = querySnap.docs
-      .map((doc) => normalizeClientDocument(doc.id, doc.data()))
-      .filter((client) => client.deletedAt === null)
-      .filter((client) => (status ? client.status === status : true));
-    const totalItems = matchedClients.length;
-    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
-
-    return {
-      items: matchedClients.slice(offset, offset + pageSize),
-      totalItems,
-      page,
-      pageSize,
-      totalPages,
-    };
-  }
-
-  let baseQuery: FirebaseFirestore.Query = collection.where(
-    "deletedAt",
-    "==",
-    null,
-  );
-
-  if (status) {
-    baseQuery = baseQuery.where("status", "==", status);
-  }
-
-  const countSnap = await baseQuery.count().get();
-  const totalItems = countSnap.data().count;
-  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
-  const querySnap = await baseQuery
-    .orderBy("createdAt", "desc")
-    .offset(offset)
-    .limit(pageSize)
-    .get();
-
-  return {
-    items: querySnap.docs.map((doc) =>
-      normalizeClientDocument(doc.id, doc.data()),
-    ),
-    totalItems,
-    page,
-    pageSize,
-    totalPages,
-  };
+export async function listClientsPaginatedService(
+  input: ListClientsPaginatedParams,
+): Promise<PaginatedResult<ClientListItem>> {
+  return listClientsPaginated(input);
 }
 
 export async function getClientByIdService(id: string): Promise<ClientDetail> {
@@ -220,27 +126,22 @@ export async function createClientService({
 
   await assertClientEmailUnique(normalizedEmail);
 
-  const clientId = createDocumentId("clients");
+  const clientId = createClientDocumentId();
+  const normalizedCompany = normalizeNullableString(company);
 
-  await getDb()
-    .collection(COLLECTIONS.clients)
-    .doc(clientId)
-    .set({
-      id: clientId,
-      name: name.trim(),
-      email: normalizedEmail,
-      phone: normalizeNullableString(phone),
-      company: normalizeNullableString(company),
-      website: normalizeNullableString(website),
-      address: normalizeNullableString(address),
-      logo: null,
-      status: "ACTIVE",
-      searchText: normalizeSearchText(name, email, company, phone),
-      notes: normalizeNullableString(notes),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      deletedAt: null,
-    });
+  await insertClient({
+    id: clientId,
+    name: name.trim(),
+    email: normalizedEmail,
+    phone: normalizeNullableString(phone),
+    company: normalizedCompany,
+    website: normalizeNullableString(website),
+    address: normalizeNullableString(address),
+    logo: null,
+    status: "ACTIVE",
+    searchText: normalizeSearchText(name, email, company, phone),
+    notes: normalizeNullableString(notes),
+  });
 
   await writeAuditLog({
     user: actor,
@@ -253,7 +154,7 @@ export async function createClientService({
       id: clientId,
       name: name.trim(),
       email: normalizedEmail,
-      company: normalizeNullableString(company),
+      company: normalizedCompany,
       status: "ACTIVE",
     },
   });
@@ -275,24 +176,21 @@ export async function updateClientService({
 }: UpdateClientParams): Promise<ClientDetail> {
   const oldClient = await getClientByIdService(id);
   const normalizedEmail = normalizeEmail(email);
+  const normalizedCompany = normalizeNullableString(company);
 
   await assertClientEmailUnique(normalizedEmail, id);
 
-  await getDb()
-    .collection(COLLECTIONS.clients)
-    .doc(id)
-    .update({
-      name: name.trim(),
-      email: normalizedEmail,
-      phone: normalizeNullableString(phone),
-      company: normalizeNullableString(company),
-      website: normalizeNullableString(website),
-      address: normalizeNullableString(address),
-      status,
-      searchText: normalizeSearchText(name, email, company, phone),
-      notes: normalizeNullableString(notes),
-      updatedAt: serverTimestamp(),
-    });
+  await updateClient(id, {
+    name: name.trim(),
+    email: normalizedEmail,
+    phone: normalizeNullableString(phone),
+    company: normalizedCompany,
+    website: normalizeNullableString(website),
+    address: normalizeNullableString(address),
+    status,
+    searchText: normalizeSearchText(name, email, company, phone),
+    notes: normalizeNullableString(notes),
+  });
 
   await writeAuditLog({
     user: actor,
@@ -309,7 +207,7 @@ export async function updateClientService({
     newValue: {
       name: name.trim(),
       email: normalizedEmail,
-      company: normalizeNullableString(company),
+      company: normalizedCompany,
       status,
     },
   });
@@ -324,10 +222,7 @@ export async function updateClientLogoService({
 }: UpdateClientLogoParams): Promise<ClientDetail> {
   const oldClient = await getClientByIdService(id);
 
-  await getDb().collection(COLLECTIONS.clients).doc(id).update({
-    logo,
-    updatedAt: serverTimestamp(),
-  });
+  await updateClientLogo(id, logo);
 
   if (oldClient.logo?.publicId && oldClient.logo.publicId !== logo.publicId) {
     await deleteCloudinaryImage(oldClient.logo.publicId);
@@ -356,11 +251,7 @@ export async function deleteClientService({
 }: ClientIdParams): Promise<ClientDetail> {
   const oldClient = await getClientByIdService(id);
 
-  await getDb().collection(COLLECTIONS.clients).doc(id).update({
-    status: "ARCHIVED",
-    deletedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  await archiveClient(id);
 
   await writeAuditLog({
     user: actor,
@@ -389,25 +280,9 @@ export async function restoreClientService({
   actor,
   id,
 }: ClientIdParams): Promise<ClientDetail> {
-  const clientSnap = await getDb()
-    .collection(COLLECTIONS.clients)
-    .doc(id)
-    .get();
+  const oldClient = await getClientDocumentOrThrow(id);
 
-  if (!clientSnap.exists) {
-    throw new AppError("Client tidak ditemukan.", 404, "CLIENT_NOT_FOUND");
-  }
-
-  const oldClient = normalizeClientDocument(
-    clientSnap.id,
-    clientSnap.data() ?? {},
-  );
-
-  await getDb().collection(COLLECTIONS.clients).doc(id).update({
-    status: "ACTIVE",
-    deletedAt: null,
-    updatedAt: serverTimestamp(),
-  });
+  await restoreClient(id);
 
   await writeAuditLog({
     user: actor,
