@@ -68,6 +68,7 @@ export function TaskCommentsDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [comments, setComments] = useState<TaskCommentListItem[]>([]);
+  const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentBody, setEditingCommentBody] = useState("");
@@ -77,25 +78,30 @@ export function TaskCommentsDialog({
       return;
     }
 
-    setComments([]);
-    setCommentBody("");
-    setEditingCommentId(null);
-    setEditingCommentBody("");
-    onMessage(null);
+    const taskId = task.id;
 
     startTransition(async () => {
       const result = await listTaskCommentsAction({
-        taskId: task.id,
+        taskId,
       });
 
       if (result.success) {
         setComments(result.data);
+        setLoadedTaskId(taskId);
+        setCommentBody("");
+        setEditingCommentId(null);
+        setEditingCommentBody("");
         return;
       }
 
+      setComments([]);
+      setLoadedTaskId(taskId);
       onMessage(result.message);
     });
   }, [open, task, onMessage]);
+
+  const visibleComments =
+    task && loadedTaskId === task.id ? comments : [];
 
   function refreshComments(taskId: string) {
     startTransition(async () => {
@@ -224,21 +230,21 @@ export function TaskCommentsDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {isPending && comments.length === 0 ? (
+          {isPending && visibleComments.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               Memuat komentar...
             </div>
           ) : null}
 
-          {!isPending && comments.length === 0 ? (
+          {!isPending && visibleComments.length === 0 ? (
             <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
               Belum ada komentar untuk tugas ini.
             </div>
           ) : null}
 
           <div className="space-y-3">
-            {comments.map((comment) => {
+            {visibleComments.map((comment) => {
               const isEditing = editingCommentId === comment.id;
 
               return (
