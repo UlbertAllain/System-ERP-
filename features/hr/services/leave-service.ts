@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 
 import {
   COLLECTIONS,
@@ -17,6 +17,11 @@ import type {
   LeaveRequestStatus,
   LeaveRequestType,
 } from "@/types/leave";
+import {
+  findLeaveRequestById,
+  listLeaveRequests,
+  normalizeLeaveRequestDocument,
+} from "@/features/hr/repositories/leave-repository";
 
 type CreateLeaveRequestParams = {
   actor: CurrentUser;
@@ -46,19 +51,6 @@ type EmployeeSnapshot = {
   fullName: string;
   userId: string;
 };
-
-function timestampToDate(value: unknown): Date | null {
-  if (
-    value &&
-    typeof value === "object" &&
-    "toDate" in value &&
-    typeof value.toDate === "function"
-  ) {
-    return value.toDate();
-  }
-
-  return null;
-}
 
 function dateStringToDate(value: string): Date {
   const date = new Date(value);
@@ -90,31 +82,6 @@ function calculateTotalDays(startDate: string, endDate: string): number {
   const diff = Math.floor((end.getTime() - start.getTime()) / oneDay);
 
   return diff + 1;
-}
-
-function normalizeLeaveRequestDocument(
-  id: string,
-  data: DocumentData,
-): LeaveRequestListItem {
-  return {
-    id,
-    employeeId: String(data.employeeId ?? ""),
-    employeeName: String(data.employeeName ?? ""),
-    userId: String(data.userId ?? ""),
-    type: data.type as LeaveRequestType,
-    startDate: timestampToDate(data.startDate),
-    endDate: timestampToDate(data.endDate),
-    totalDays: Number(data.totalDays ?? 0),
-    reason: String(data.reason ?? ""),
-    status: data.status as LeaveRequestStatus,
-    approvedById: data.approvedById ?? null,
-    approvedByName: data.approvedByName ?? null,
-    approvedAt: timestampToDate(data.approvedAt),
-    rejectedReason: data.rejectedReason ?? null,
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
 }
 
 async function getEmployeeByCurrentUser(
@@ -166,13 +133,12 @@ async function getEmployeeByCurrentUser(
   };
 }
 
-async function getLeaveRequestOrThrow(id: string): Promise<LeaveRequestDetail> {
-  const leaveSnap = await getDb()
-    .collection(COLLECTIONS.leaveRequests)
-    .doc(id)
-    .get();
+async function getLeaveRequestOrThrow(
+  id: string,
+): Promise<LeaveRequestDetail> {
+  const leaveRequest = await findLeaveRequestById(id);
 
-  if (!leaveSnap.exists) {
+  if (!leaveRequest) {
     throw new AppError(
       "Leave request tidak ditemukan.",
       404,
@@ -180,7 +146,7 @@ async function getLeaveRequestOrThrow(id: string): Promise<LeaveRequestDetail> {
     );
   }
 
-  return normalizeLeaveRequestDocument(leaveSnap.id, leaveSnap.data() ?? {});
+  return leaveRequest;
 }
 
 function assertOwnLeaveRequest(
@@ -239,14 +205,7 @@ function assertLeaveRequestCancellable(leaveRequest: LeaveRequestDetail): void {
 export async function listLeaveRequestsService(): Promise<
   LeaveRequestListItem[]
 > {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.leaveRequests)
-    .orderBy("createdAt", "desc")
-    .get();
-
-  return querySnap.docs
-    .map((doc) => normalizeLeaveRequestDocument(doc.id, doc.data()))
-    .filter((leaveRequest) => leaveRequest.deletedAt === null);
+  return listLeaveRequests();
 }
 
 export async function getLeaveRequestByIdService(
