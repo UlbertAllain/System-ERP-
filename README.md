@@ -26,28 +26,64 @@ Versi ini merupakan revisi P0–P2 yang memprioritaskan integritas transaksi, ot
 
 ## Struktur utama
 
+Repository sedang menjalani structural cleanup secara incremental. Struktur aktif saat ini:
+
 ```text
-app/                    Route, layout, dan API
-components/             UI bersama dan dashboard shell
-features/               Use case, action, service, schema, dan UI per fitur
-modules/finance/         Domain rule dan mapper keuangan
-lib/                    Auth, Firebase, audit, error, money, permission
-constants/              Konfigurasi, permission, dan role bawaan
-scripts/                 Seed dan migration v2
-tests/                   Domain regression tests
-docs/                    Migration, changelog, dan checklist release
+app/                    Route, layout, page, dan API
+components/             Reusable UI dan dashboard shell
+features/               Server action, service, schema, dan domain-specific UI
+modules/                Domain rule yang sudah mulai dipisahkan
+lib/                    Auth, Firebase, Cloudinary, error, permission, helper lintas domain
+constants/              Konfigurasi, permission, dan role
+types/                  Type legacy/transitional yang akan dipindahkan per-domain
+scripts/                Seed dan migration
+tests/                  Domain regression tests
+docs/                   Migration dan release checklist
 ```
 
-Struktur sengaja dibuat dangkal. Business rule tidak boleh ditempatkan di route atau komponen React.
+Target architecture adalah modular monolith dengan dependency flow:
+
+```text
+UI / Page
+↓
+Server Action / Route Handler
+↓
+Authentication
+↓
+Authorization
+↓
+Validation
+↓
+Service
+↓
+Repository
+↓
+Firestore
+```
+
+Migration dilakukan domain-by-domain, bukan big-bang refactor.
+
+## Engineering Documentation
+
+Sebelum mengubah source code, baca:
+
+- [AGENTS.md](AGENTS.md) — aturan kerja developer/AI dan definition of done.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — boundary, dependency flow, dan target struktur.
+- [ENGINEERING_STANDARD.md](ENGINEERING_STANDARD.md) — code quality, security, testing, dan refactoring rules.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — aturan kontribusi repository.
 
 ## Persiapan lokal
+
+Gunakan Node.js 22 atau versi LTS yang kompatibel.
 
 ```bash
 npm install
 cp .env.example .env.local
 ```
 
-Isi `.env.local`, lalu jalankan:
+Isi `.env.local` berdasarkan contract pada `.env.example`. Jangan commit credential atau private key.
+
+Lalu jalankan:
 
 ```bash
 npm run seed
@@ -160,6 +196,8 @@ Atau sekaligus:
 ```bash
 npm run check
 ```
+
+GitHub Actions menjalankan quality gate yang sama pada branch cleanup dan pull request.
 
 Checklist manual sebelum release tersedia di [`docs/TEST-CHECKLIST.md`](docs/TEST-CHECKLIST.md).
 
