@@ -22,12 +22,17 @@ import type {
 } from "@/types/project";
 
 import {
-  timestampToDate,
   normalizeNullableString,
   normalizeSearchText,
   dateStringToTimestamp,
 } from "@/lib/domain/firestore-value";
 import { assertValidProjectStatusTransition } from "@/modules/projects/projects/project-domain";
+import {
+  findProjectById,
+  listProjects,
+  listProjectsPaginated,
+  normalizeProjectDocument,
+} from "@/features/projects/repositories/project-repository";
 type CreateProjectParams = {
   actor: CurrentUser;
   projectCode: string;
@@ -105,37 +110,6 @@ function assertValidProjectDateRange(
       "INVALID_PROJECT_DATE_RANGE",
     );
   }
-}
-
-function normalizeProjectDocument(
-  id: string,
-  data: DocumentData,
-): ProjectListItem {
-  return {
-    id,
-    projectCode: String(data.projectCode ?? ""),
-    name: String(data.name ?? ""),
-    description: data.description ?? null,
-    clientId: String(data.clientId ?? ""),
-    clientName: String(data.clientName ?? ""),
-    clientCompany: data.clientCompany ?? null,
-
-    picUserId: data.picUserId ?? null,
-    picEmployeeId: data.picEmployeeId ?? null,
-    picName: data.picName ?? null,
-
-    status: data.status as ProjectStatus,
-    priority: data.priority as ProjectPriority,
-    billingType: data.billingType as ProjectBillingType,
-    budget: Number(data.budget ?? 0),
-    startDate: timestampToDate(data.startDate),
-    endDate: timestampToDate(data.endDate),
-    thumbnail: data.thumbnail ?? null,
-    notes: data.notes ?? null,
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
 }
 
 async function assertProjectCodeUnique(
@@ -218,96 +192,23 @@ function normalizeEmployeeSnapshotOrThrow(
 }
 
 async function getProjectDocumentOrThrow(id: string): Promise<ProjectDetail> {
-  const projectSnap = await getDb()
-    .collection(COLLECTIONS.projects)
-    .doc(id)
-    .get();
+  const project = await findProjectById(id);
 
-  if (!projectSnap.exists) {
+  if (!project) {
     throw new AppError("Project tidak ditemukan.", 404, "PROJECT_NOT_FOUND");
   }
 
-  return normalizeProjectDocument(projectSnap.id, projectSnap.data() ?? {});
+  return project;
 }
 
 export async function listProjectsService(): Promise<ProjectListItem[]> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.projects)
-    .orderBy("createdAt", "desc")
-    .get();
-
-  return querySnap.docs
-    .map((doc) => normalizeProjectDocument(doc.id, doc.data()))
-    .filter((project) => project.deletedAt === null);
+  return listProjects();
 }
 
-export async function listProjectsPaginatedService({
-  search,
-  status,
-  priority,
-  page,
-  pageSize,
-}: ListProjectsPaginatedParams): Promise<PaginatedResult<ProjectListItem>> {
-  const normalizedSearch = search?.trim().toLowerCase();
-  const collection = getDb().collection(COLLECTIONS.projects);
-  const offset = (page - 1) * pageSize;
-
-  if (normalizedSearch) {
-    const querySnap = await collection
-      .orderBy("searchText")
-      .startAt(normalizedSearch)
-      .endAt(`${normalizedSearch}\uf8ff`)
-      .get();
-
-    const matchedProjects = querySnap.docs
-      .map((doc) => normalizeProjectDocument(doc.id, doc.data()))
-      .filter((project) => project.deletedAt === null)
-      .filter((project) => (status ? project.status === status : true))
-      .filter((project) => (priority ? project.priority === priority : true));
-    const totalItems = matchedProjects.length;
-    const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
-
-    return {
-      items: matchedProjects.slice(offset, offset + pageSize),
-      totalItems,
-      page,
-      pageSize,
-      totalPages,
-    };
-  }
-
-  let baseQuery: FirebaseFirestore.Query = collection.where(
-    "deletedAt",
-    "==",
-    null,
-  );
-
-  if (status) {
-    baseQuery = baseQuery.where("status", "==", status);
-  }
-
-  if (priority) {
-    baseQuery = baseQuery.where("priority", "==", priority);
-  }
-
-  const countSnap = await baseQuery.count().get();
-  const totalItems = countSnap.data().count;
-  const totalPages = Math.max(Math.ceil(totalItems / pageSize), 1);
-  const querySnap = await baseQuery
-    .orderBy("createdAt", "desc")
-    .offset(offset)
-    .limit(pageSize)
-    .get();
-
-  return {
-    items: querySnap.docs.map((doc) =>
-      normalizeProjectDocument(doc.id, doc.data()),
-    ),
-    totalItems,
-    page,
-    pageSize,
-    totalPages,
-  };
+export async function listProjectsPaginatedService(
+  input: ListProjectsPaginatedParams,
+): Promise<PaginatedResult<ProjectListItem>> {
+  return listProjectsPaginated(input);
 }
 
 export async function getProjectByIdService(
