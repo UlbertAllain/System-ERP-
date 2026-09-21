@@ -4,8 +4,14 @@ import { addMoney, subtractMoney } from "@/lib/domain/money";
 
 import { listClients } from "@/features/clients/repositories/client-repository";
 import { listEmployees } from "@/features/employees/repositories/employee-repository";
-import { listExpenses } from "@/features/finance/repositories/expense-repository";
-import { listInvoices } from "@/features/finance/repositories/invoice-repository";
+import {
+  listExpenses,
+  listExpensesByExpenseDateRange,
+} from "@/features/finance/repositories/expense-repository";
+import {
+  listInvoices,
+  listInvoicesByIssueDateRange,
+} from "@/features/finance/repositories/invoice-repository";
 import { listProjects } from "@/features/projects/repositories/project-repository";
 import { listTasks } from "@/features/projects/repositories/task-repository";
 import type {
@@ -93,27 +99,19 @@ export async function getReportsDashboardSummaryService(
   const to = getEndOfDate(filter.to);
   const hasDateFilter = Boolean(from || to);
 
-  const [invoices, expenses, projects, tasks, clients, employees] =
+  const [filteredInvoices, filteredExpenses, projects, tasks, clients, employees] =
     await Promise.all([
-      listInvoices({}),
-      listExpenses({}),
+      hasDateFilter
+        ? listInvoicesByIssueDateRange({ from, to })
+        : listInvoices({}),
+      hasDateFilter
+        ? listExpensesByExpenseDateRange({ from, to })
+        : listExpenses({}),
       listProjects(),
       listTasks({}),
       listClients(),
       listEmployees(),
     ]);
-
-  const filteredInvoices = hasDateFilter
-    ? invoices.filter((invoice) =>
-        isDateInsideRange(invoice.issueDate, from, to),
-      )
-    : invoices;
-
-  const filteredExpenses = hasDateFilter
-    ? expenses.filter((expense) =>
-        isDateInsideRange(expense.expenseDate, from, to),
-      )
-    : expenses;
 
   const filteredProjects = hasDateFilter
     ? projects.filter((project) =>
