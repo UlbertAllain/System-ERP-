@@ -24,85 +24,77 @@ Repository
 Firestore / External Infrastructure
 ```
 
-## Current Status
+## Active Structure
 
-Repository sedang dalam migration incremental dari struktur campuran:
+Repository menggunakan pembagian tanggung jawab berikut:
 
 ```text
-app/
-features/
-modules/
-types/
-lib/
-components/
+app/          framework routing, layouts, pages, route handlers
+features/     use-case orchestration, actions, services, repositories, feature UI
+modules/      pure domain rules and document/domain mappers
+types/        shared domain contracts used across routes/features/modules
+lib/          infrastructure and cross-cutting implementation
+components/   reusable global UI
+tests/        business/domain regression tests
 ```
 
-menuju struktur domain-oriented yang lebih predictable.
+Struktur ini dianggap valid dan stabil. Tidak ada target untuk memindahkan seluruh repository ke `src/` atau menyatukan `features/`, `modules/`, dan `types/` hanya demi keseragaman folder.
 
-Jangan melakukan big-bang move seluruh repository. Domain dipindahkan bertahap dan setiap phase wajib melewati quality gate.
+Perubahan struktur harus memberi manfaat konkret: boundary lebih jelas, coupling berkurang, security meningkat, atau maintainability membaik.
 
-## Target Structure
+## Feature Convention
 
-```text
-src/
-├── app/
-├── modules/
-│   ├── auth/
-│   ├── audit-logs/
-│   ├── clients/
-│   ├── employees/
-│   ├── finance/
-│   │   ├── invoices/
-│   │   ├── payments/
-│   │   ├── expenses/
-│   │   └── dashboard/
-│   ├── hr/
-│   ├── projects/
-│   ├── reports/
-│   ├── roles/
-│   ├── settings/
-│   └── users/
-├── components/
-│   ├── ui/
-│   └── shared/
-├── lib/
-│   ├── firebase/
-│   └── cloudinary/
-├── shared/
-├── constants/
-└── config/
-```
-
-Folder hanya dibuat ketika diperlukan.
-
-## Module Convention
-
-Contoh:
+Feature yang memiliki persistence mengikuti pola:
 
 ```text
-modules/clients/
-├── client.service.ts
-├── client.repository.ts
-├── client.schema.ts
-├── client.types.ts
+features/<domain>/
+├── actions/
+├── services/
+├── repositories/
+├── schemas/
 └── components/
 ```
 
-- service: business logic/orchestration;
-- repository: persistence/query;
-- schema: runtime validation;
-- types: module model;
+Tidak semua folder wajib ada.
+
+- actions: server boundary dan transport-facing orchestration;
+- services: business use case dan authorization-aware orchestration;
+- repositories: Firestore/query/persistence detail;
+- schemas: runtime validation;
 - components: domain-specific UI.
 
-## Current Transitional Rules
+## Domain Modules
 
-Sampai migration selesai:
-- existing `features/*/actions` tetap menjadi server boundary;
-- existing `features/*/services` boleh dipertahankan selama domain belum dimigrasikan;
-- domain baru tidak boleh memperluas architecture leakage;
-- repository layer diperkenalkan domain-by-domain;
-- `types/` hanya dipindahkan ketika module pemiliknya dimigrasikan;
-- `app/` tetap tipis dan tidak boleh mengakses Firestore langsung.
+`modules/` hanya dipakai untuk logic domain yang murni atau reusable dan tidak bergantung pada React, Next.js routing, request context, atau persistence bootstrap.
+
+Contoh saat ini:
+
+```text
+modules/finance/
+├── domain/
+├── expenses/
+├── invoices/
+└── payments/
+
+modules/projects/
+├── milestones/
+├── projects/
+└── tasks/
+```
+
+Isi yang tepat untuk `modules/`:
+- state transition rules;
+- financial/domain invariants;
+- pure calculation;
+- mapper yang tidak melakukan I/O.
+
+Jangan memindahkan service/repository ke `modules/` hanya supaya semua domain terlihat seragam.
+
+## Shared Types
+
+Root `types/` tetap dipakai untuk contract yang digunakan lintas feature/module/page.
+
+Type hanya dipindahkan ke feature lokal bila benar-benar private terhadap feature tersebut. Hindari duplikasi type hanya untuk mengikuti folder convention.
 
 ## Infrastructure
 
@@ -121,30 +113,54 @@ Invoice, payment, dan expense adalah critical domain. Refactor wajib mempertahan
 - money normalization;
 - regression test.
 
+Mutation transaction tidak boleh dipindahkan ke repository secara mekanis bila perubahan tersebut membuat business rule atau atomicity menjadi kurang jelas.
+
 ## Read Models
 
-Dashboard dan report tidak boleh berkembang menjadi full-collection scan. Untuk jalur read-heavy, prefer indexed query, dedicated repository/query object, atau maintained summary/read model bila volume membenarkan.
+Dashboard dan report tidak boleh berkembang menjadi full-collection scan.
+
+Untuk jalur read-heavy:
+1. gunakan indexed query bila cukup;
+2. gunakan dedicated repository/read model;
+3. gunakan maintained summary/materialized read model bila volume membenarkan.
+
+Read optimization tidak boleh mengubah business semantics hanya demi mengurangi document read.
+
+## UI Composition
+
+Client component besar harus dipecah berdasarkan responsibility, bukan sekadar jumlah baris.
+
+Contoh boundary yang baik:
+- filter/search panel;
+- table/list presentation;
+- dialog workflow;
+- form section yang kompleks.
+
+Parent component sebaiknya mempertahankan orchestration dan state yang memang menghubungkan beberapa child.
 
 ## Architecture Decision Rule
 
 Developer baru harus dapat menebak:
 
 ```text
-Business logic        → module service/domain
-Firestore access      → repository
-Validation            → schema
-Firebase bootstrap    → lib/firebase
-Cloudinary            → lib/cloudinary
-Reusable global UI    → components
-Cross-domain concern  → shared
+Server boundary        → features/*/actions
+Business orchestration → features/*/services
+Firestore access       → features/*/repositories
+Pure domain rules      → modules/*
+Validation             → features/*/schemas
+Firebase bootstrap     → lib/firebase
+Cloudinary             → lib/cloudinary
+Reusable global UI     → components
+Shared contracts       → types
 ```
 
-Jika satu capability memerlukan pencarian di terlalu banyak root folder, boundary tersebut menjadi kandidat migration.
+Jika satu capability memerlukan pencarian di terlalu banyak root folder, boundary tersebut menjadi kandidat refactor. Refactor dilakukan incremental dan setiap phase wajib melewati quality gate.
 
 ## Status
 
 Architecture: Modular Monolith  
-Migration: Incremental  
-Persistence: Firestore server-side  
+Structure: Feature-Oriented + Pure Domain Modules  
+Persistence: Firestore server-side through repositories  
 Image Handling: Cloudinary  
-Status: STABLE WITH ACTIVE STRUCTURAL CLEANUP
+Migration Strategy: Incremental, benefit-driven  
+Status: STABLE

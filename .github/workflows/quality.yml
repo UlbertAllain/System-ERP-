@@ -37,5 +37,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Dependency audit report
+        shell: bash
+        run: |
+          npm audit --json > npm-audit.json || true
+          node <<'NODE'
+          const fs = require("node:fs");
+          const audit = JSON.parse(fs.readFileSync("npm-audit.json", "utf8"));
+          const vulnerabilities = audit.vulnerabilities ?? {};
+          const summary = Object.entries(vulnerabilities)
+            .map(([name, value]) => ({
+              name,
+              severity: value.severity,
+              direct: Boolean(value.isDirect),
+              range: value.range,
+              fixAvailable: value.fixAvailable,
+            }))
+            .sort((a, b) => {
+              const weight = { critical: 4, high: 3, moderate: 2, low: 1 };
+              return (weight[b.severity] ?? 0) - (weight[a.severity] ?? 0);
+            });
+
+          console.log("Dependency vulnerability summary:");
+          console.log(JSON.stringify(summary, null, 2));
+          console.log("Metadata:");
+          console.log(JSON.stringify(audit.metadata?.vulnerabilities ?? {}, null, 2));
+          NODE
+
       - name: Run quality gate
         run: npm run check
