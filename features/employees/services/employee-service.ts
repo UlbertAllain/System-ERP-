@@ -1,7 +1,5 @@
 import "server-only";
 
-import type { DocumentData } from "firebase-admin/firestore";
-
 import {
   COLLECTIONS,
   createDocumentId,
@@ -21,10 +19,12 @@ import type {
 import { deleteCloudinaryImage } from "@/lib/cloudinary/server";
 import type { ImageAsset } from "@/types/common";
 
+import { dateStringToTimestamp } from "@/lib/domain/firestore-value";
 import {
-  timestampToDate,
-  dateStringToTimestamp,
-} from "@/lib/domain/firestore-value";
+  findEmployeeById,
+  listEmployees,
+  normalizeEmployeeDocument,
+} from "@/features/employees/repositories/employee-repository";
 type CreateEmployeeParams = {
   actor: CurrentUser;
   userId?: string | null;
@@ -67,34 +67,6 @@ type EmployeeIdParams = {
   actor: CurrentUser;
   id: string;
 };
-
-function normalizeEmployeeDocument(
-  id: string,
-  data: DocumentData,
-): EmployeeListItem {
-  return {
-    id,
-    userId: data.userId ?? null,
-    employeeCode: String(data.employeeCode ?? ""),
-    fullName: String(data.fullName ?? ""),
-    email: String(data.email ?? ""),
-    phone: data.phone ?? null,
-    address: data.address ?? null,
-    photo: data.photo ?? null,
-    position: String(data.position ?? ""),
-    department: data.department as EmployeeDepartment,
-    employmentType: data.employmentType as EmploymentType,
-    joinDate: timestampToDate(data.joinDate),
-    resignDate: timestampToDate(data.resignDate),
-    status: data.status as EmployeeStatus,
-    emergencyContactName: data.emergencyContactName ?? null,
-    emergencyContactPhone: data.emergencyContactPhone ?? null,
-    notes: data.notes ?? null,
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-    deletedAt: timestampToDate(data.deletedAt),
-  };
-}
 
 async function assertEmployeeCodeUnique(
   employeeCode: string,
@@ -185,16 +157,13 @@ async function assertUserLinkValid(
 }
 
 async function getEmployeeDocumentOrThrow(id: string): Promise<EmployeeDetail> {
-  const employeeSnap = await getDb()
-    .collection(COLLECTIONS.employees)
-    .doc(id)
-    .get();
+  const employee = await findEmployeeById(id);
 
-  if (!employeeSnap.exists) {
+  if (!employee) {
     throw new AppError("Employee tidak ditemukan.", 404, "EMPLOYEE_NOT_FOUND");
   }
 
-  return normalizeEmployeeDocument(employeeSnap.id, employeeSnap.data() ?? {});
+  return employee;
 }
 
 async function syncUserEmployeeLink(
@@ -212,14 +181,7 @@ async function syncUserEmployeeLink(
 }
 
 export async function listEmployeesService(): Promise<EmployeeListItem[]> {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.employees)
-    .orderBy("createdAt", "desc")
-    .get();
-
-  return querySnap.docs
-    .map((doc) => normalizeEmployeeDocument(doc.id, doc.data()))
-    .filter((employee) => employee.deletedAt === null);
+  return listEmployees();
 }
 
 export async function getEmployeeByIdService(

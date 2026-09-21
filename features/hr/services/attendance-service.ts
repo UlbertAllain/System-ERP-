@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 
 import {
   COLLECTIONS,
@@ -15,6 +15,11 @@ import type {
   AttendanceRecordListItem,
   AttendanceStatus,
 } from "@/types/attendance";
+import {
+  findAttendanceRecordById,
+  listAttendanceRecords,
+  normalizeAttendanceRecordDocument,
+} from "@/features/hr/repositories/attendance-repository";
 
 type ClockInParams = {
   actor: CurrentUser;
@@ -50,19 +55,6 @@ type EmployeeSnapshot = {
   userId: string;
 };
 
-function timestampToDate(value: unknown): Date | null {
-  if (
-    value &&
-    typeof value === "object" &&
-    "toDate" in value &&
-    typeof value.toDate === "function"
-  ) {
-    return value.toDate();
-  }
-
-  return null;
-}
-
 function getTodayDateString(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -95,25 +87,6 @@ function optionalDateTimeStringToTimestamp(
   }
 
   return Timestamp.fromDate(date);
-}
-
-function normalizeAttendanceRecordDocument(
-  id: string,
-  data: DocumentData,
-): AttendanceRecordListItem {
-  return {
-    id,
-    employeeId: String(data.employeeId ?? ""),
-    employeeName: String(data.employeeName ?? ""),
-    userId: String(data.userId ?? ""),
-    date: String(data.date ?? ""),
-    clockInAt: timestampToDate(data.clockInAt),
-    clockOutAt: timestampToDate(data.clockOutAt),
-    status: data.status as AttendanceStatus,
-    notes: data.notes ?? null,
-    createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt),
-  };
 }
 
 async function getEmployeeByCurrentUser(
@@ -168,12 +141,9 @@ async function getEmployeeByCurrentUser(
 async function getAttendanceRecordOrThrow(
   id: string,
 ): Promise<AttendanceRecordDetail> {
-  const attendanceSnap = await getDb()
-    .collection(COLLECTIONS.attendanceRecords)
-    .doc(id)
-    .get();
+  const attendance = await findAttendanceRecordById(id);
 
-  if (!attendanceSnap.exists) {
+  if (!attendance) {
     throw new AppError(
       "Attendance record tidak ditemukan.",
       404,
@@ -181,10 +151,7 @@ async function getAttendanceRecordOrThrow(
     );
   }
 
-  return normalizeAttendanceRecordDocument(
-    attendanceSnap.id,
-    attendanceSnap.data() ?? {},
-  );
+  return attendance;
 }
 
 function assertOwnAttendanceRecord(
@@ -207,14 +174,7 @@ function buildAttendanceUniqueId(employeeId: string, date: string): string {
 export async function listAttendanceRecordsService(): Promise<
   AttendanceRecordListItem[]
 > {
-  const querySnap = await getDb()
-    .collection(COLLECTIONS.attendanceRecords)
-    .orderBy("date", "desc")
-    .get();
-
-  return querySnap.docs.map((doc) =>
-    normalizeAttendanceRecordDocument(doc.id, doc.data()),
-  );
+  return listAttendanceRecords();
 }
 
 export async function getAttendanceRecordByIdService(
