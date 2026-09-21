@@ -14,11 +14,8 @@ import {
   Loader2,
   MessageSquare,
   Plus,
-  Save,
   Search,
-  Send,
   Trash2,
-  X,
 } from "lucide-react";
 
 import {
