@@ -15,7 +15,6 @@ import {
   findUserById,
   listUsers,
   listUsersPaginated,
-  normalizeUserDocument,
 } from "@/features/users/repositories/user-repository";
 type CreateInternalUserParams = {
   actor: CurrentUser;
