@@ -2,9 +2,18 @@ import "server-only";
 
 import { addMoney, subtractMoney } from "@/lib/domain/money";
 
-import { listExpenses } from "@/features/finance/repositories/expense-repository";
-import { listInvoices } from "@/features/finance/repositories/invoice-repository";
-import { listPayments } from "@/features/finance/repositories/payment-repository";
+import {
+  listExpenses,
+  listExpensesByExpenseDateRange,
+} from "@/features/finance/repositories/expense-repository";
+import {
+  listInvoices,
+  listInvoicesByIssueDateRange,
+} from "@/features/finance/repositories/invoice-repository";
+import {
+  listPayments,
+  listPaymentsByPaymentDateRange,
+} from "@/features/finance/repositories/payment-repository";
 import type {
   FinanceDashboardDateFilter,
   FinanceDashboardSummary,
@@ -38,28 +47,6 @@ function getEndOfDate(value?: string): Date | null {
   return date;
 }
 
-function isDateInsideRange(
-  value: Date | null,
-  from: Date | null,
-  to: Date | null,
-) {
-  if (!value) {
-    return false;
-  }
-
-  const time = value.getTime();
-
-  if (from && time < from.getTime()) {
-    return false;
-  }
-
-  if (to && time > to.getTime()) {
-    return false;
-  }
-
-  return true;
-}
-
 function sortByDateDesc<T>(items: T[], getDate: (item: T) => Date | null): T[] {
   return [...items].sort((a, b) => {
     const aTime = getDate(a)?.getTime() ?? 0;
@@ -75,32 +62,20 @@ export async function getFinanceDashboardSummaryService(
   const from = parseDateOnly(filter.from);
   const to = getEndOfDate(filter.to);
 
-  const [invoices, payments, expenses] = await Promise.all([
-    listInvoices({}),
-    listPayments({}),
-    listExpenses({}),
-  ]);
+  const hasDateFilter = Boolean(from || to);
 
-  const filteredInvoices =
-    from || to
-      ? invoices.filter((invoice) =>
-          isDateInsideRange(invoice.issueDate, from, to),
-        )
-      : invoices;
-
-  const filteredPayments =
-    from || to
-      ? payments.filter((payment) =>
-          isDateInsideRange(payment.paymentDate, from, to),
-        )
-      : payments;
-
-  const filteredExpenses =
-    from || to
-      ? expenses.filter((expense) =>
-          isDateInsideRange(expense.expenseDate, from, to),
-        )
-      : expenses;
+  const [filteredInvoices, filteredPayments, filteredExpenses] =
+    await Promise.all([
+      hasDateFilter
+        ? listInvoicesByIssueDateRange({ from, to })
+        : listInvoices({}),
+      hasDateFilter
+        ? listPaymentsByPaymentDateRange({ from, to })
+        : listPayments({}),
+      hasDateFilter
+        ? listExpensesByExpenseDateRange({ from, to })
+        : listExpenses({}),
+    ]);
 
   const activeInvoices = filteredInvoices.filter(
     (invoice) => invoice.status !== "VOID",

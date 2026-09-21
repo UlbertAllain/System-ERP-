@@ -23,6 +23,33 @@ export type ListExpensesPaginatedRepositoryParams =
     pageSize: number;
   };
 
+
+export type DateRangeRepositoryParams = {
+  from?: Date | null;
+  to?: Date | null;
+};
+
+export async function listExpensesByExpenseDateRange({
+  from,
+  to,
+}: DateRangeRepositoryParams): Promise<ExpenseListItem[]> {
+  let query: FirebaseFirestore.Query = getDb().collection(COLLECTIONS.expenses);
+
+  if (from) {
+    query = query.where("expenseDate", ">=", from);
+  }
+
+  if (to) {
+    query = query.where("expenseDate", "<=", to);
+  }
+
+  const querySnap = await query.orderBy("expenseDate", "desc").get();
+
+  return querySnap.docs
+    .map((doc) => normalizeExpenseDocument(doc.id, doc.data()))
+    .filter((expense) => expense.deletedAt === null);
+}
+
 export async function findExpenseById(
   id: string,
 ): Promise<ExpenseDetail | null> {

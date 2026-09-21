@@ -6,6 +6,7 @@ on:
       - main
       - "chore/**"
       - "refactor/**"
+      - "perf/**"
   pull_request:
 
 permissions:
