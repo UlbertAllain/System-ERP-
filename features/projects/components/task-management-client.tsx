@@ -6,16 +6,10 @@ import { TASK_STATUS_TRANSITIONS } from "@/modules/projects/tasks/task-domain";
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  Edit,
   FilterX,
   Loader2,
-  MessageSquare,
   Plus,
   Search,
-  Trash2,
 } from "lucide-react";
 
 import {
@@ -27,9 +21,8 @@ import type { MilestoneListItem } from "@/types/milestone";
 import type { ProjectListItem } from "@/types/project";
 import type { ProjectMemberListItem } from "@/types/project-member";
 import type { TaskListItem, TaskPriority, TaskStatus } from "@/types/task";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -39,14 +32,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ProjectWorkspaceNav,
@@ -56,6 +41,7 @@ import {
   TaskCommentsDialog,
   type TaskCommentPermissions,
 } from "@/features/projects/components/task-comments-dialog";
+import { TaskManagementTable } from "@/features/projects/components/task-management-table";
 
 type TaskManagementClientProps = {
   tasks: TaskListItem[];
@@ -126,42 +112,6 @@ function formatDateInput(value: Date | null): string {
   }
 
   return value.toISOString().slice(0, 10);
-}
-
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(value);
-}
-
-function getStatusVariant(status: TaskStatus) {
-  if (status === "DONE") {
-    return "secondary" as const;
-  }
-
-  if (status === "BLOCKED" || status === "CANCELLED") {
-    return "destructive" as const;
-  }
-
-  return "outline" as const;
-}
-
-function getPriorityVariant(priority: TaskPriority) {
-  if (priority === "URGENT" || priority === "HIGH") {
-    return "destructive" as const;
-  }
-
-  if (priority === "MEDIUM") {
-    return "secondary" as const;
-  }
-
-  return "outline" as const;
 }
 
 export function TaskManagementClient({
@@ -241,10 +191,6 @@ export function TaskManagementClient({
       (member) => member.projectId === form.projectId,
     );
   }, [activeMembers, form.projectId]);
-
-  const sortedTasks = useMemo(() => {
-    return tasks;
-  }, [tasks]);
 
   function updateQuery(next: {
     search?: string;
@@ -815,160 +761,16 @@ export function TaskManagementClient({
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="size-5" />
-              Daftar Tugas
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {pagination.totalItems} records - page {pagination.page} of{" "}
-              {pagination.totalPages}
-            </p>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tugas</TableHead>
-                  <TableHead>Proyek</TableHead>
-                  <TableHead>Tahapan</TableHead>
-                  <TableHead>Penanggung Jawab</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Prioritas</TableHead>
-                  <TableHead>Tenggat</TableHead>
-                  <TableHead className="w-[200px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {sortedTasks.map((task) => (
-                  <TableRow key={task.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{task.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Urutan: {task.order}
-                        </p>
-                        {task.description ? (
-                          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                            {task.description}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{task.projectName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {task.projectCode}
-                        </p>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>{task.milestoneTitle ?? "-"}</TableCell>
-
-                    <TableCell>{task.assigneeName ?? "Belum ditugaskan"}</TableCell>
-
-                    <TableCell>
-                      <Badge variant={getStatusVariant(task.status)}>
-                        {getBusinessLabel(task.status)}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge variant={getPriorityVariant(task.priority)}>
-                        {getBusinessLabel(task.priority)}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell>{formatDate(task.dueDate)}</TableCell>
-
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {commentPermissions.canRead ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openComments(task)}
-                            disabled={isPending}
-                            title="Buka komentar"
-                          >
-                            <MessageSquare className="size-4" />
-                          </Button>
-                        ) : null}
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditDialog(task)}
-                          disabled={isPending}
-                        >
-                          <Edit className="size-4" />
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(task)}
-                          disabled={isPending}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {sortedTasks.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="h-32 text-center text-sm text-muted-foreground"
-                    >
-                      Belum ada tugas.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Menampilkan {sortedTasks.length} dari {pagination.totalItems} tugas
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page <= 1}
-                onClick={() => goToPage(pagination.page - 1)}
-              >
-                <ChevronLeft className="size-4" />
-                Sebelumnya
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => goToPage(pagination.page + 1)}
-              >
-                Berikutnya
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <TaskManagementTable
+        tasks={tasks}
+        pagination={pagination}
+        canReadComments={commentPermissions.canRead}
+        isPending={isPending}
+        onOpenComments={openComments}
+        onEdit={openEditDialog}
+        onDelete={handleDelete}
+        onPageChange={goToPage}
+      />
     </div>
   );
 }
