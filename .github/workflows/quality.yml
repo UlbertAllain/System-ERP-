@@ -64,5 +64,8 @@ jobs:
           console.log(JSON.stringify(audit.metadata?.vulnerabilities ?? {}, null, 2));
           NODE
 
+      - name: Enforce dependency severity threshold
+        run: npm audit --audit-level=high
+
       - name: Run quality gate
         run: npm run check
