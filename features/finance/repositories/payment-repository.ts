@@ -25,6 +25,33 @@ export type ListPaymentsPaginatedRepositoryParams =
     pageSize: number;
   };
 
+
+export type DateRangeRepositoryParams = {
+  from?: Date | null;
+  to?: Date | null;
+};
+
+export async function listPaymentsByPaymentDateRange({
+  from,
+  to,
+}: DateRangeRepositoryParams): Promise<PaymentListItem[]> {
+  let query: FirebaseFirestore.Query = getDb().collection(COLLECTIONS.payments);
+
+  if (from) {
+    query = query.where("paymentDate", ">=", from);
+  }
+
+  if (to) {
+    query = query.where("paymentDate", "<=", to);
+  }
+
+  const querySnap = await query.orderBy("paymentDate", "desc").get();
+
+  return querySnap.docs
+    .map((doc) => normalizePaymentDocument(doc.id, doc.data()))
+    .filter((payment) => payment.deletedAt === null);
+}
+
 export async function findPaymentById(
   id: string,
 ): Promise<PaymentDetail | null> {
