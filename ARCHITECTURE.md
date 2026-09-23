@@ -4,7 +4,7 @@
 
 Nexty Labs ERP menggunakan modular monolith berbasis Next.js App Router, TypeScript, Firebase Authentication, Firestore melalui Firebase Admin SDK, Cloudinary, dan Zod.
 
-Target dependency flow:
+Dependency flow utama:
 
 ```text
 UI / Page
@@ -26,81 +26,64 @@ Firestore / External Infrastructure
 
 ## Active Structure
 
-Repository menggunakan pembagian tanggung jawab berikut:
-
 ```text
-app/          framework routing, layouts, pages, route handlers
-features/     use-case orchestration, actions, services, repositories, feature UI
-modules/      pure domain rules and document/domain mappers
-types/        shared domain contracts used across routes/features/modules
-lib/          infrastructure and cross-cutting implementation
-components/   reusable global UI
-tests/        business/domain regression tests
+src/
+├── app/                  framework routing, layouts, pages, route handlers
+├── components/           reusable global UI and dashboard shell
+├── modules/              business/domain capabilities
+├── lib/                  infrastructure and cross-cutting implementation
+├── constants/            app configuration, permission, role constants
+└── types/                shared contracts used across modules
+
+tests/                    business/domain regression tests
+scripts/                  seed and migration utilities
+docs/                     migration and release documentation
 ```
 
-Struktur ini dianggap valid dan stabil. Tidak ada target untuk memindahkan seluruh repository ke `src/` atau menyatukan `features/`, `modules/`, dan `types/` hanya demi keseragaman folder.
+Source code tidak ditempatkan di root repository. Root dipakai untuk project configuration, documentation, scripts, dan tests.
 
-Perubahan struktur harus memberi manfaat konkret: boundary lebih jelas, coupling berkurang, security meningkat, atau maintainability membaik.
+## Module Convention
 
-## Feature Convention
+Setiap capability berada di `src/modules/<domain>/`.
 
-Feature yang memiliki persistence mengikuti pola:
+Contoh:
 
 ```text
-features/<domain>/
+src/modules/projects/
 ├── actions/
-├── services/
+├── components/
 ├── repositories/
 ├── schemas/
-└── components/
-```
-
-Tidak semua folder wajib ada.
-
-- actions: server boundary dan transport-facing orchestration;
-- services: business use case dan authorization-aware orchestration;
-- repositories: Firestore/query/persistence detail;
-- schemas: runtime validation;
-- components: domain-specific UI.
-
-## Domain Modules
-
-`modules/` hanya dipakai untuk logic domain yang murni atau reusable dan tidak bergantung pada React, Next.js routing, request context, atau persistence bootstrap.
-
-Contoh saat ini:
-
-```text
-modules/finance/
-├── domain/
-├── expenses/
-├── invoices/
-└── payments/
-
-modules/projects/
+├── services/
 ├── milestones/
 ├── projects/
 └── tasks/
 ```
 
-Isi yang tepat untuk `modules/`:
-- state transition rules;
-- financial/domain invariants;
-- pure calculation;
-- mapper yang tidak melakukan I/O.
+Tidak semua subfolder wajib ada.
 
-Jangan memindahkan service/repository ke `modules/` hanya supaya semua domain terlihat seragam.
+- `actions/`: server boundary dan request-facing orchestration.
+- `components/`: domain-specific UI.
+- `repositories/`: Firestore query/persistence boundary.
+- `schemas/`: runtime validation.
+- `services/`: business use case dan orchestration.
+- pure domain folders: state transition, calculation, mapper, dan invariant tanpa I/O.
+
+Pure domain logic tetap dekat dengan capability-nya; tidak dibuat root abstraction baru hanya demi simetri.
 
 ## Shared Types
 
-Root `types/` tetap dipakai untuk contract yang digunakan lintas feature/module/page.
+`src/types/` dipakai untuk contract yang benar-benar digunakan lintas module/page.
 
-Type hanya dipindahkan ke feature lokal bila benar-benar private terhadap feature tersebut. Hindari duplikasi type hanya untuk mengikuti folder convention.
+Type yang hanya digunakan satu module sebaiknya tetap dekat dengan module tersebut jika pemindahan memberi manfaat nyata. Hindari duplikasi type hanya demi mengikuti pola folder.
 
 ## Infrastructure
 
-`lib/firebase/` adalah satu-satunya tempat bootstrap Firebase. Business data memakai Firebase Admin SDK di server. Firestore Security Rules menolak browser read/write untuk business collections.
+`src/lib/firebase/` adalah bootstrap Firebase. Business data memakai Firebase Admin SDK di server.
 
-`lib/cloudinary/` menangani integrasi Cloudinary. Upload protected melewati authenticated/authorized server route.
+`src/lib/cloudinary/` menangani Cloudinary.
+
+Cross-cutting auth, permission, error, audit, money, UI helper, dan utility lain tetap berada di `src/lib/` selama responsibility-nya jelas dan lintas domain.
 
 ## Financial Domain
 
@@ -113,7 +96,7 @@ Invoice, payment, dan expense adalah critical domain. Refactor wajib mempertahan
 - money normalization;
 - regression test.
 
-Mutation transaction tidak boleh dipindahkan ke repository secara mekanis bila perubahan tersebut membuat business rule atau atomicity menjadi kurang jelas.
+Mutation transaction tidak dipindahkan secara mekanis bila perubahan tersebut membuat business rule atau atomicity menjadi kurang jelas.
 
 ## Read Models
 
@@ -124,42 +107,44 @@ Untuk jalur read-heavy:
 2. gunakan dedicated repository/read model;
 3. gunakan maintained summary/materialized read model bila volume membenarkan.
 
-Read optimization tidak boleh mengubah business semantics hanya demi mengurangi document read.
+Optimization tidak boleh mengubah business semantics hanya demi mengurangi document read.
 
 ## UI Composition
 
-Client component besar harus dipecah berdasarkan responsibility, bukan sekadar jumlah baris.
+Client component besar dipecah berdasarkan responsibility, bukan sekadar jumlah baris.
 
-Contoh boundary yang baik:
+Boundary yang valid:
 - filter/search panel;
 - table/list presentation;
 - dialog workflow;
 - form section yang kompleks.
 
-Parent component sebaiknya mempertahankan orchestration dan state yang memang menghubungkan beberapa child.
+Parent component mempertahankan orchestration dan state yang memang menghubungkan beberapa child.
 
 ## Architecture Decision Rule
 
 Developer baru harus dapat menebak:
 
 ```text
-Server boundary        → features/*/actions
-Business orchestration → features/*/services
-Firestore access       → features/*/repositories
-Pure domain rules      → modules/*
-Validation             → features/*/schemas
-Firebase bootstrap     → lib/firebase
-Cloudinary             → lib/cloudinary
-Reusable global UI     → components
-Shared contracts       → types
+Server boundary        → src/modules/*/actions
+Business orchestration → src/modules/*/services
+Firestore access       → src/modules/*/repositories
+Validation             → src/modules/*/schemas
+Domain-specific UI     → src/modules/*/components
+Pure domain rules      → src/modules/<domain>/*
+Firebase bootstrap     → src/lib/firebase
+Cloudinary             → src/lib/cloudinary
+Reusable global UI     → src/components
+Shared contracts       → src/types
+Permission constants   → src/constants
 ```
 
-Jika satu capability memerlukan pencarian di terlalu banyak root folder, boundary tersebut menjadi kandidat refactor. Refactor dilakukan incremental dan setiap phase wajib melewati quality gate.
+Jangan menambah root source folder baru tanpa alasan arsitektural yang jelas.
 
 ## Status
 
 Architecture: Modular Monolith  
-Structure: Feature-Oriented + Pure Domain Modules  
+Structure: Source under `src/`, Domain-Oriented Modules  
 Persistence: Firestore server-side through repositories  
 Image Handling: Cloudinary  
 Migration Strategy: Incremental, benefit-driven  

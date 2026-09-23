@@ -26,19 +26,20 @@ Versi ini merupakan revisi P0–P2 yang memprioritaskan integritas transaksi, ot
 
 ## Struktur utama
 
-Struktur aktif adalah modular monolith berbasis feature dengan pure domain module terpisah:
+Seluruh source aplikasi berada di `src/`.
 
 ```text
-app/                    Route, layout, page, dan API
-components/             Reusable global UI dan dashboard shell
-features/               Action, service, repository, schema, dan domain-specific UI
-modules/                Pure domain rules, state transition, calculation, dan mapper
-lib/                    Auth, Firebase, Cloudinary, error, permission, helper lintas domain
-constants/              Konfigurasi, permission, dan role
-types/                  Shared domain contracts lintas feature/module/page
-scripts/                Seed dan migration
-tests/                  Domain regression tests
-docs/                   Migration dan release checklist
+src/
+├── app/                  Route, layout, page, dan API
+├── components/           Reusable global UI dan dashboard shell
+├── modules/              Domain capability: action, service, repository, schema, UI, pure domain logic
+├── lib/                  Auth, Firebase, Cloudinary, error, permission, audit, helper lintas domain
+├── constants/            Konfigurasi, permission, dan role
+└── types/                Shared domain contracts lintas module/page
+
+scripts/                  Seed dan migration
+tests/                    Domain regression tests
+docs/                     Migration dan release checklist
 ```
 
 Dependency flow utama:
@@ -61,7 +62,7 @@ Repository
 Firestore
 ```
 
-Struktur tidak dipindahkan hanya demi keseragaman folder. Refactor dilakukan incremental ketika ada manfaat konkret pada boundary, coupling, security, performance, atau maintainability.
+Business capability baru ditempatkan di `src/modules/<domain>/`. Root repository tidak digunakan untuk source folder baru.
 
 ## Engineering Documentation
 
