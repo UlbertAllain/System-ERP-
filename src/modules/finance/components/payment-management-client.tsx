@@ -10,7 +10,7 @@ import {
 import {
   cancelPaymentAction,
   createPaymentAction,
-} from "@/features/finance/actions";
+} from "@/modules/finance/actions";
 import type { ClientListItem } from "@/types/client";
 import type { InvoiceListItem } from "@/types/invoice";
 import type {
@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PaymentManagementList } from "@/features/finance/components/payment-management-list";
+import { PaymentManagementList } from "@/modules/finance/components/payment-management-list";
 
 type PaymentManagementClientProps = {
   payments: PaymentListItem[];

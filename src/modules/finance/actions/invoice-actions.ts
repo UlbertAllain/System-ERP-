@@ -20,7 +20,7 @@ import {
   listInvoicesService,
   updateInvoiceService,
   voidInvoiceService,
-} from "@/features/finance/services/invoice-service";
+} from "@/modules/finance/services/invoice-service";
 import {
   createInvoiceSchema,
   invoiceIdSchema,
@@ -30,8 +30,8 @@ import {
   type InvoiceIdInput,
   type ListInvoicesInput,
   type UpdateInvoiceInput,
-} from "@/features/finance/schemas/invoice-schema";
-import { getAssignedProjectIdsForUser } from "@/features/projects/actions/project-access-scope";
+} from "@/modules/finance/schemas/invoice-schema";
+import { getAssignedProjectIdsForUser } from "@/modules/projects/actions/project-access-scope";
 
 function revalidateInvoicePaths() {
   revalidatePath("/invoices");

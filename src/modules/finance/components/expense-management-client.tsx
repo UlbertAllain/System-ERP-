@@ -15,7 +15,7 @@ import {
   rejectExpenseAction,
   submitExpenseAction,
   updateExpenseAction,
-} from "@/features/finance/actions";
+} from "@/modules/finance/actions";
 import type {
   ExpenseCategory,
   ExpenseListItem,
@@ -34,7 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { CompanySetting } from "@/types/company-setting";
-import { ExpenseManagementList } from "@/features/finance/components/expense-management-list";
+import { ExpenseManagementList } from "@/modules/finance/components/expense-management-list";
 
 type ExpenseManagementClientProps = {
   expenses: ExpenseListItem[];

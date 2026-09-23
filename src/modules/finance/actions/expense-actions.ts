@@ -22,7 +22,7 @@ import {
   rejectExpenseService,
   submitExpenseService,
   updateExpenseService,
-} from "@/features/finance/services/expense-service";
+} from "@/modules/finance/services/expense-service";
 import {
   createExpenseSchema,
   expenseIdSchema,
@@ -34,7 +34,7 @@ import {
   type ListExpensesInput,
   type RejectExpenseInput,
   type UpdateExpenseInput,
-} from "@/features/finance/schemas/expense-schema";
+} from "@/modules/finance/schemas/expense-schema";
 
 function revalidateExpensePaths() {
   revalidatePath("/expenses");

@@ -6,7 +6,7 @@ import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
 import { requirePermission } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
-import { getFinanceDashboardSummaryService } from "@/features/finance/services/finance-dashboard-service";
+import { getFinanceDashboardSummaryService } from "@/modules/finance/services/finance-dashboard-service";
 import type {
   FinanceDashboardDateFilter,
   FinanceDashboardSummary,

@@ -34,7 +34,7 @@ import {
   findExpenseById,
   listExpenses,
   listExpensesPaginated,
-} from "@/features/finance/repositories/expense-repository";
+} from "@/modules/finance/repositories/expense-repository";
 
 type CreateExpenseParams = {
   actor: CurrentUser;

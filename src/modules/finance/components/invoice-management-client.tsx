@@ -16,7 +16,7 @@ import {
   issueInvoiceAction,
   updateInvoiceAction,
   voidInvoiceAction,
-} from "@/features/finance/actions";
+} from "@/modules/finance/actions";
 import type { ClientListItem } from "@/types/client";
 import type { CompanySetting } from "@/types/company-setting";
 import type { InvoiceDetail, InvoiceListItem } from "@/types/invoice";
@@ -32,7 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { InvoiceManagementList } from "@/features/finance/components/invoice-management-list";
+import { InvoiceManagementList } from "@/modules/finance/components/invoice-management-list";
 
 type InvoiceManagementClientProps = {
   invoices: InvoiceListItem[];

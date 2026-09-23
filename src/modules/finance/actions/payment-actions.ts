@@ -17,7 +17,7 @@ import {
   getPaymentByIdService,
   listPaymentsPaginatedService,
   listPaymentsService,
-} from "@/features/finance/services/payment-service";
+} from "@/modules/finance/services/payment-service";
 import {
   createPaymentSchema,
   listPaymentsSchema,
@@ -25,7 +25,7 @@ import {
   type CreatePaymentInput,
   type ListPaymentsInput,
   type PaymentIdInput,
-} from "@/features/finance/schemas/payment-schema";
+} from "@/modules/finance/schemas/payment-schema";
 
 function revalidatePaymentPaths() {
   revalidatePath("/payments");
