@@ -1,4 +1,5 @@
 name: Legacy Alias Audit
+# rerun-after-import-cleanup
 
 on:
   push:
