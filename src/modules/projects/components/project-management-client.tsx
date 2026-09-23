@@ -14,7 +14,7 @@ import {
   createProjectAction,
   deleteProjectAction,
   updateProjectAction,
-} from "@/features/projects/actions";
+} from "@/modules/projects/actions";
 import type { ClientListItem } from "@/types/client";
 import type { EmployeeListItem } from "@/types/employee";
 import type {
@@ -38,9 +38,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ProjectWorkspaceNav,
   type ProjectWorkspaceAccess,
-} from "@/features/projects/components/project-workspace-nav";
-import { ProjectManagementFilters } from "@/features/projects/components/project-management-filters";
-import { ProjectManagementTable } from "@/features/projects/components/project-management-table";
+} from "@/modules/projects/components/project-workspace-nav";
+import { ProjectManagementFilters } from "@/modules/projects/components/project-management-filters";
+import { ProjectManagementTable } from "@/modules/projects/components/project-management-table";
 
 type ProjectManagementClientProps = {
   projects: ProjectListItem[];

@@ -17,7 +17,7 @@ import {
   deleteTaskCommentAction,
   listTaskCommentsAction,
   updateTaskCommentAction,
-} from "@/features/projects/actions";
+} from "@/modules/projects/actions";
 import type { TaskListItem } from "@/types/task";
 import type { TaskCommentListItem } from "@/types/task-comment";
 import { Button } from "@/components/ui/button";

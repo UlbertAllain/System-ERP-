@@ -10,7 +10,7 @@ import {
   addProjectMemberAction,
   removeProjectMemberAction,
   updateProjectMemberAction,
-} from "@/features/projects/actions";
+} from "@/modules/projects/actions";
 import type { EmployeeListItem } from "@/types/employee";
 import type { ProjectListItem } from "@/types/project";
 import type {
@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import {
   ProjectWorkspaceNav,
   type ProjectWorkspaceAccess,
-} from "@/features/projects/components/project-workspace-nav";
+} from "@/modules/projects/components/project-workspace-nav";
 import {
   Table,
   TableBody,

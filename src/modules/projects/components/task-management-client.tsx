@@ -14,7 +14,7 @@ import {
   createTaskAction,
   deleteTaskAction,
   updateTaskAction,
-} from "@/features/projects/actions";
+} from "@/modules/projects/actions";
 import type { MilestoneListItem } from "@/types/milestone";
 import type { ProjectListItem } from "@/types/project";
 import type { ProjectMemberListItem } from "@/types/project-member";
@@ -34,13 +34,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ProjectWorkspaceNav,
   type ProjectWorkspaceAccess,
-} from "@/features/projects/components/project-workspace-nav";
+} from "@/modules/projects/components/project-workspace-nav";
 import {
   TaskCommentsDialog,
   type TaskCommentPermissions,
-} from "@/features/projects/components/task-comments-dialog";
-import { TaskManagementTable } from "@/features/projects/components/task-management-table";
-import { TaskManagementFilters } from "@/features/projects/components/task-management-filters";
+} from "@/modules/projects/components/task-comments-dialog";
+import { TaskManagementTable } from "@/modules/projects/components/task-management-table";
+import { TaskManagementFilters } from "@/modules/projects/components/task-management-filters";
 
 type TaskManagementClientProps = {
   tasks: TaskListItem[];

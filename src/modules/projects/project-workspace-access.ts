@@ -1,6 +1,6 @@
 import type { CurrentUser } from "@/types/auth";
 import type { PermissionSlug } from "@/constants/permissions";
-import type { ProjectWorkspaceAccess } from "@/features/projects/components/project-workspace-nav";
+import type { ProjectWorkspaceAccess } from "@/modules/projects/components/project-workspace-nav";
 
 function hasAny(user: CurrentUser, permissions: PermissionSlug[]) {
   return (

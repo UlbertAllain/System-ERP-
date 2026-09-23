@@ -18,7 +18,7 @@ import {
   listTasksPaginatedService,
   listTasksService,
   updateTaskService,
-} from "@/features/projects/services/task-service";
+} from "@/modules/projects/services/task-service";
 import {
   createTaskSchema,
   listTasksSchema,
@@ -28,13 +28,13 @@ import {
   type ListTasksInput,
   type TaskIdInput,
   type UpdateTaskInput,
-} from "@/features/projects/schemas/task-schema";
+} from "@/modules/projects/schemas/task-schema";
 import {
   canAccessProjectForMutation,
   canAccessTask,
   filterTasksForUser,
   userHasOnlyAssignedTaskRead,
-} from "@/features/projects/actions/project-access-scope";
+} from "@/modules/projects/actions/project-access-scope";
 
 function revalidateTaskPaths() {
   revalidatePath("/projects");

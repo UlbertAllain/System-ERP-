@@ -20,7 +20,7 @@ import {
   getTaskForCommentOrThrow,
   listTaskCommentsService,
   updateTaskCommentService,
-} from "@/features/projects/services/task-comment-service";
+} from "@/modules/projects/services/task-comment-service";
 import {
   createTaskCommentSchema,
   listTaskCommentsSchema,
@@ -30,8 +30,8 @@ import {
   type ListTaskCommentsInput,
   type TaskCommentIdInput,
   type UpdateTaskCommentInput,
-} from "@/features/projects/schemas/task-comment-schema";
-import { canAccessTask } from "@/features/projects/actions/project-access-scope";
+} from "@/modules/projects/schemas/task-comment-schema";
+import { canAccessTask } from "@/modules/projects/actions/project-access-scope";
 
 function revalidateTaskCommentPaths() {
   revalidatePath("/projects/tasks");
