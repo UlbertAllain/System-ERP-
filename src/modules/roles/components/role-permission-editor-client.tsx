@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Save, ShieldCheck } from "lucide-react";
 
 import type { PermissionSlug, RoleSlug } from "@/constants/permissions";
-import { updateRolePermissionsAction } from "@/features/roles/actions";
+import { updateRolePermissionsAction } from "@/modules/roles/actions";
 import type {
   PermissionListItem,
   RoleListItem,

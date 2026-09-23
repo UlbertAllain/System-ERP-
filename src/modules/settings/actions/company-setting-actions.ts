@@ -11,13 +11,13 @@ import {
   getCompanySettingService,
   updateCompanyLogoService,
   updateCompanySettingService,
-} from "@/features/settings/services/company-setting-service";
+} from "@/modules/settings/services/company-setting-service";
 import {
   updateCompanyLogoSchema,
   updateCompanySettingSchema,
   type UpdateCompanyLogoInput,
   type UpdateCompanySettingInput,
-} from "@/features/settings/schemas/company-setting-schema";
+} from "@/modules/settings/schemas/company-setting-schema";
 
 function revalidateCompanySettingPaths() {
   revalidatePath("/settings/company");

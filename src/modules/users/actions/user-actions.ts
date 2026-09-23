@@ -18,7 +18,7 @@ import {
   suspendUserService,
   updateUserProfileService,
   updateUserRolesService,
-} from "@/features/users/services/user-service";
+} from "@/modules/users/services/user-service";
 import {
   createUserSchema,
   getUserByIdSchema,
@@ -32,7 +32,7 @@ import {
   type UpdateUserProfileInput,
   type UpdateUserRolesInput,
   type UpdateUserStatusInput,
-} from "@/features/users/schemas/user-schema";
+} from "@/modules/users/schemas/user-schema";
 
 export async function listUsersAction(
   input: ListUsersInput = {},

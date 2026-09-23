@@ -14,7 +14,7 @@ import {
   listPermissions,
   listRoles,
   normalizeRoleDocument,
-} from "@/features/roles/repositories/role-repository";
+} from "@/modules/roles/repositories/role-repository";
 
 type UpdateRolePermissionsParams = {
   actor: CurrentUser;

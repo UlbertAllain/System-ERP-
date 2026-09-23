@@ -9,7 +9,7 @@ import type { CompanySetting } from "@/types/company-setting";
 import {
   COMPANY_SETTING_ID,
   getCompanySetting,
-} from "@/features/settings/repositories/company-setting-repository";
+} from "@/modules/settings/repositories/company-setting-repository";
 
 type UpdateCompanySettingParams = {
   actor: CurrentUser;

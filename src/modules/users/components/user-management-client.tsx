@@ -14,7 +14,7 @@ import {
   deleteUserAction,
   suspendUserAction,
   updateUserRolesAction,
-} from "@/features/users/actions";
+} from "@/modules/users/actions";
 import type { UserListItem } from "@/types/user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import { UserManagementList } from "@/features/users/components/user-management-list";
+import { UserManagementList } from "@/modules/users/components/user-management-list";
 
 type UserManagementClientProps = {
   users: UserListItem[];

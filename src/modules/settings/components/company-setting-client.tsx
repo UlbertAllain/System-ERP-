@@ -6,7 +6,7 @@ import { Building2, ImageIcon, Loader2, Save } from "lucide-react";
 import {
   updateCompanyLogoAction,
   updateCompanySettingAction,
-} from "@/features/settings/actions";
+} from "@/modules/settings/actions";
 import {
   uploadImageToCloudinary,
   validateImageFile,

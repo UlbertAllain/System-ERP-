@@ -16,7 +16,7 @@ import {
   listPermissionsService,
   listRolesService,
   updateRolePermissionsService,
-} from "@/features/roles/services/role-service";
+} from "@/modules/roles/services/role-service";
 import {
   getRolePermissionEditorDataSchema,
   listPermissionsSchema,
@@ -26,7 +26,7 @@ import {
   type ListPermissionsInput,
   type ListRolesInput,
   type UpdateRolePermissionsInput,
-} from "@/features/roles/schemas/role-schema";
+} from "@/modules/roles/schemas/role-schema";
 
 export async function listRolesAction(
   input: ListRolesInput = {},
