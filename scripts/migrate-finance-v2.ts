@@ -4,9 +4,9 @@ import { createHash } from "crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
-import { addMoney, compareMoney, normalizeMoney, subtractMoney } from "../lib/domain/money";
-import { deriveInvoicePaymentStatus } from "../modules/finance/domain/invoice-payment-state";
-import type { InvoiceStatus } from "../types/invoice";
+import { addMoney, compareMoney, normalizeMoney, subtractMoney } from "../src/lib/domain/money";
+import { deriveInvoicePaymentStatus } from "../src/modules/finance/domain/invoice-payment-state";
+import type { InvoiceStatus } from "../src/types/invoice";
 
 function getRequiredEnv(key: string): string {
   const value = process.env[key];

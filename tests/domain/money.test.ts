@@ -7,7 +7,7 @@ import {
   normalizeMoney,
   subtractMoney,
   toMoneyMinorUnits,
-} from "../../lib/domain/money";
+} from "../../src/lib/domain/money";
 
 test("operasi uang tidak mengalami drift 0.1 + 0.2", () => {
   assert.equal(addMoney(0.1, 0.2), 0.3);
