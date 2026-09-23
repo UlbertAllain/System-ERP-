@@ -1,0 +1,134 @@
+name: Structure Standardization
+
+on:
+  push:
+    branches:
+      - "refactor/src-structure-standardization"
+    paths:
+      - ".github/workflows/structure-standardization.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout migration branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/src-structure-standardization
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Move source into src and consolidate features into modules
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p src
+
+          git mv app src/app
+          git mv components src/components
+          git mv constants src/constants
+          git mv lib src/lib
+          git mv types src/types
+          git mv modules src/modules
+
+          shopt -s dotglob nullglob
+          for source in features/*; do
+            name="$(basename "$source")"
+            destination="src/modules/$name"
+
+            if [[ -d "$destination" ]]; then
+              for item in "$source"/*; do
+                base="$(basename "$item")"
+                if [[ -e "$destination/$base" ]]; then
+                  echo "Collision detected: $destination/$base"
+                  exit 1
+                fi
+                git mv "$item" "$destination/$base"
+              done
+              rmdir "$source"
+            else
+              git mv "$source" "$destination"
+            fi
+          done
+          rmdir features
+
+      - name: Rewrite aliases and config
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const { execFileSync } = require("node:child_process");
+
+          const files = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+            .split("\n")
+            .filter(Boolean)
+            .filter((file) =>
+              /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|md|json|yml|yaml)$/.test(file),
+            );
+
+          for (const file of files) {
+            if (!fs.existsSync(file)) continue;
+            const before = fs.readFileSync(file, "utf8");
+            const after = before.replaceAll("@/features/", "@/modules/");
+            if (after !== before) {
+              fs.writeFileSync(file, after);
+            }
+          }
+
+          const tsconfig = JSON.parse(fs.readFileSync("tsconfig.json", "utf8"));
+          tsconfig.compilerOptions.paths = {
+            ...(tsconfig.compilerOptions.paths ?? {}),
+            "@/*": ["./src/*"],
+          };
+          fs.writeFileSync("tsconfig.json", JSON.stringify(tsconfig, null, 2) + "\n");
+
+          const components = JSON.parse(fs.readFileSync("components.json", "utf8"));
+          components.tailwind.css = "src/app/globals.css";
+          fs.writeFileSync(
+            "components.json",
+            JSON.stringify(components, null, 2) + "\n",
+          );
+          NODE
+
+      - name: Verify migration shape
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for legacy in app components constants features lib modules types; do
+            if [[ -e "$legacy" ]]; then
+              echo "Legacy source root still exists: $legacy"
+              exit 1
+            fi
+          done
+
+          test -d src/app
+          test -d src/modules
+          test -d src/components
+          test -d src/lib
+          test -d src/constants
+          test -d src/types
+
+          if git grep -n "@/features/" -- '*.ts' '*.tsx' '*.mjs' '*.md' '*.json'; then
+            echo "Legacy @/features import remains."
+            exit 1
+          fi
+
+      - name: Commit structure migration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: standardize source structure under src"
+          git push origin HEAD:refactor/src-structure-standardization
