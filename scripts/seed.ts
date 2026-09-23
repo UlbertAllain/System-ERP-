@@ -6,10 +6,10 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 
-import { APP_CONFIG } from "../constants/app";
-import { securePasswordSchema } from "../lib/auth/password-policy";
-import { PERMISSIONS } from "../constants/permissions/permissions";
-import { ROLES } from "../constants/permissions/roles";
+import { APP_CONFIG } from "../src/constants/app";
+import { securePasswordSchema } from "../src/lib/auth/password-policy";
+import { PERMISSIONS } from "../src/constants/permissions/permissions";
+import { ROLES } from "../src/constants/permissions/roles";
 
 config({ path: ".env.local" });
 

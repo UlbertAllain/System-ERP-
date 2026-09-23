@@ -2,11 +2,14 @@
 
 ## Boundary
 
-- `app/`: composition dan routing saja.
-- `features/*/actions`: validasi request, permission guard, dan response mapping.
-- `features/*/services`: use case dan orchestration bisnis.
-- `modules/*`: pure domain rule dan mapper.
-- `lib/*`: infrastructure/shared helper yang dipakai lintas domain.
+- `src/app/`: composition dan routing saja.
+- `src/modules/*/actions`: validasi request, permission guard, dan response mapping.
+- `src/modules/*/services`: use case dan orchestration bisnis.
+- `src/modules/*/repositories`: persistence/query Firestore.
+- `src/modules/*/schemas`: runtime validation.
+- `src/modules/*/components`: domain-specific UI.
+- `src/lib/*`: infrastructure dan cross-cutting helper.
+- `src/components/*`: reusable global UI.
 - Komponen React tidak boleh melakukan mutation Firestore langsung.
 
 ## Mutation kritis
@@ -21,8 +24,8 @@ Mutation finance, project identity, user access, dan approval wajib:
 
 ## Permission
 
-- Tambahkan permission di `constants/permissions/permissions.ts`.
-- Hubungkan ke role di `constants/permissions/roles.ts`.
+- Tambahkan permission di `src/constants/permissions/permissions.ts`.
+- Hubungkan ke role di `src/constants/permissions/roles.ts`.
 - Guard page dan action secara terpisah.
 - Jangan menggunakan `permissionsCache` sebagai authorization source.
 
@@ -32,4 +35,4 @@ Mutation finance, project identity, user access, dan approval wajib:
 npm run check
 ```
 
-Pull request tidak boleh digabung bila lint, typecheck, test, atau build gagal.
+Pull request tidak boleh digabung bila lint, typecheck, test, build, atau dependency security threshold gagal.

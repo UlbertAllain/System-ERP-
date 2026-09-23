@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { calculateInvoiceTotals } from "../../modules/finance/invoices/invoice-domain";
+import { calculateInvoiceTotals } from "../../src/modules/finance/invoices/invoice-domain";
 
 test("total invoice dinormalisasi tanpa floating point drift", () => {
   const result = calculateInvoiceTotals({

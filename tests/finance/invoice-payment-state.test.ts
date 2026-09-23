@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   buildInvoicePaymentProjection,
   deriveInvoicePaymentStatus,
-} from "../../modules/finance/domain/invoice-payment-state";
+} from "../../src/modules/finance/domain/invoice-payment-state";
 
 test("invoice tanpa pembayaran tetap issued", () => {
   assert.equal(deriveInvoicePaymentStatus(1_000, 0, "ISSUED"), "ISSUED");

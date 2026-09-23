@@ -60,16 +60,19 @@ Protected business operation tidak boleh langsung dari UI ke Firestore.
 
 ## Responsibilities
 
-- `app/`: routing, page, layout, API/route handler, framework boundary.
-- `features/`: struktur legacy/transitional. Jangan menambah domain baru di sini tanpa migration plan.
-- `modules/`: target home untuk domain/business capability.
-- `components/`: reusable UI lintas domain.
-- `lib/`: infrastructure/external integration seperti Firebase dan Cloudinary.
-- `shared/`: cross-domain concern seperti error, permission, validation, security.
+- `src/app/`: routing, page, layout, API/route handler, framework boundary.
+- `src/modules/`: domain/business capability; actions, services, repositories, schemas, domain UI, dan pure domain logic.
+- `src/components/`: reusable UI lintas domain.
+- `src/lib/`: infrastructure dan cross-cutting implementation seperti Firebase, Cloudinary, auth, permission, error, dan audit.
+- `src/constants/`: configuration constant, permission, dan role.
+- `src/types/`: shared contract lintas module.
+- `scripts/`: seed dan migration.
+- `tests/`: regression/domain tests.
 - repository: persistence/query Firestore.
 - service: business decision dan orchestration.
 - schema: runtime validation.
-- types: utamakan module-local type.
+
+Jangan membuat folder source baru di root repository.
 
 ## ERP Safety Rules
 
@@ -81,11 +84,14 @@ Protected business operation tidak boleh langsung dari UI ke Firestore.
 
 ## Refactoring Rules
 
-Refactor harus incremental. Untuk migration struktur:
-1. pindahkan satu domain/capability;
-2. perbaiki import;
-3. jalankan quality gate;
-4. baru lanjut domain berikutnya.
+Refactor harus incremental dan punya manfaat konkret.
+
+Untuk perubahan struktur:
+1. tentukan target responsibility;
+2. pindahkan capability tanpa mengubah behavior;
+3. perbaiki import;
+4. jalankan quality gate;
+5. hapus compatibility path setelah semua import bersih.
 
 Jangan membuat folder kosong atau abstraction yang belum diperlukan.
 
@@ -116,5 +122,5 @@ npm run check
 - Error handling konsisten.
 - Tidak ada secret yang ter-commit.
 - Test relevan pass.
-- Typecheck, lint, dan build pass.
+- Typecheck, lint, test, dan build pass.
 - Diff tidak membawa unrelated change.
