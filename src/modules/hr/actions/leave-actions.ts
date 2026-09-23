@@ -19,7 +19,7 @@ import {
   rejectLeaveRequestService,
   submitLeaveRequestService,
   updateOwnLeaveRequestService,
-} from "@/features/hr/services/leave-service";
+} from "@/modules/hr/services/leave-service";
 import {
   createLeaveRequestSchema,
   leaveRequestIdSchema,
@@ -31,7 +31,7 @@ import {
   type ListLeaveRequestsInput,
   type RejectLeaveRequestInput,
   type UpdateOwnLeaveRequestInput,
-} from "@/features/hr/schemas/leave-schema";
+} from "@/modules/hr/schemas/leave-schema";
 
 function revalidateLeavePaths() {
   revalidatePath("/hr");

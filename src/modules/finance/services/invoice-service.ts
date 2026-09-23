@@ -35,7 +35,7 @@ import {
   findInvoiceById,
   listInvoices,
   listInvoicesPaginated,
-} from "@/features/finance/repositories/invoice-repository";
+} from "@/modules/finance/repositories/invoice-repository";
 
 type CreateInvoiceParams = {
   actor: CurrentUser;

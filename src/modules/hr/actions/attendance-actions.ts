@@ -20,7 +20,7 @@ import {
   getAttendanceRecordByIdService,
   listAttendanceRecordsService,
   updateAttendanceService,
-} from "@/features/hr/services/attendance-service";
+} from "@/modules/hr/services/attendance-service";
 import {
   attendanceRecordIdSchema,
   clockInSchema,
@@ -32,7 +32,7 @@ import {
   type ClockOutInput,
   type ListAttendanceRecordsInput,
   type UpdateAttendanceInput,
-} from "@/features/hr/schemas/attendance-schema";
+} from "@/modules/hr/schemas/attendance-schema";
 
 function revalidateAttendancePaths() {
   revalidatePath("/hr");

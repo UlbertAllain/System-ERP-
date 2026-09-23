@@ -5,15 +5,15 @@ import { addMoney, subtractMoney } from "@/lib/domain/money";
 import {
   listExpenses,
   listExpensesByExpenseDateRange,
-} from "@/features/finance/repositories/expense-repository";
+} from "@/modules/finance/repositories/expense-repository";
 import {
   listInvoices,
   listInvoicesByIssueDateRange,
-} from "@/features/finance/repositories/invoice-repository";
+} from "@/modules/finance/repositories/invoice-repository";
 import {
   listPayments,
   listPaymentsByPaymentDateRange,
-} from "@/features/finance/repositories/payment-repository";
+} from "@/modules/finance/repositories/payment-repository";
 import type {
   FinanceDashboardDateFilter,
   FinanceDashboardSummary,

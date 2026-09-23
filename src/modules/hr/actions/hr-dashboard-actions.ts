@@ -4,7 +4,7 @@ import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
 import { requireAnyPermission } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
-import { getHrDashboardSummaryService } from "@/features/hr/services/hr-dashboard-service";
+import { getHrDashboardSummaryService } from "@/modules/hr/services/hr-dashboard-service";
 import type { HrDashboardSummary } from "@/types/hr-dashboard";
 
 export async function getHrDashboardSummaryAction(): Promise<

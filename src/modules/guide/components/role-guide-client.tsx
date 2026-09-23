@@ -26,7 +26,7 @@ import {
   getRoleGuide,
   type GuideWorkflow,
   type RoleGuide,
-} from "@/features/guide/data/role-guides";
+} from "@/modules/guide/data/role-guides";
 import { cn } from "@/lib/utils";
 
 type RoleGuideClientProps = {

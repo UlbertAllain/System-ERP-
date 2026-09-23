@@ -39,7 +39,7 @@ import {
   findPaymentById,
   listPayments,
   listPaymentsPaginated,
-} from "@/features/finance/repositories/payment-repository";
+} from "@/modules/finance/repositories/payment-repository";
 
 type CreatePaymentParams = {
   actor: CurrentUser;

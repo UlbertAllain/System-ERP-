@@ -17,7 +17,7 @@ import {
   clockOutAction,
   deleteAttendanceRecordAction,
   updateAttendanceAction,
-} from "@/features/hr/actions";
+} from "@/modules/hr/actions";
 import type {
   AttendanceRecordListItem,
   AttendanceStatus,
@@ -34,7 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AttendanceManagementTable } from "@/features/hr/components/attendance-management-table";
+import { AttendanceManagementTable } from "@/modules/hr/components/attendance-management-table";
 
 type AttendanceManagementClientProps = {
   currentUser: CurrentUser;
