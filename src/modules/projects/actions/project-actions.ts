@@ -19,7 +19,7 @@ import {
   listProjectsService,
   restoreProjectService,
   updateProjectService,
-} from "@/features/projects/services/project-service";
+} from "@/modules/projects/services/project-service";
 import {
   createProjectSchema,
   listProjectsSchema,
@@ -29,12 +29,12 @@ import {
   type ListProjectsInput,
   type ProjectIdInput,
   type UpdateProjectInput,
-} from "@/features/projects/schemas/project-schema";
+} from "@/modules/projects/schemas/project-schema";
 import {
   canAccessProject,
   filterProjectsForUser,
   userHasOnlyAssignedProjectRead,
-} from "@/features/projects/actions/project-access-scope";
+} from "@/modules/projects/actions/project-access-scope";
 
 function revalidateProjectPaths() {
   revalidatePath("/projects");

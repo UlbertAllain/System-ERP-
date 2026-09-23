@@ -1,8 +1,8 @@
 import "server-only";
 
 import { COLLECTIONS, getDb } from "@/lib/firebase/firestore";
-import { normalizeAttendanceRecordDocument } from "@/features/hr/repositories/attendance-repository";
-import { normalizeLeaveRequestDocument } from "@/features/hr/repositories/leave-repository";
+import { normalizeAttendanceRecordDocument } from "@/modules/hr/repositories/attendance-repository";
+import { normalizeLeaveRequestDocument } from "@/modules/hr/repositories/leave-repository";
 import type { AttendanceRecordListItem } from "@/types/attendance";
 import type { LeaveRequestListItem } from "@/types/leave";
 

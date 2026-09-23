@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getHrDashboardReadModel } from "@/features/hr/repositories/hr-dashboard-repository";
+import { getHrDashboardReadModel } from "@/modules/hr/repositories/hr-dashboard-repository";
 import type { HrDashboardSummary } from "@/types/hr-dashboard";
 
 function getTodayDateString(): string {

@@ -16,7 +16,7 @@ import {
   getMilestoneByIdService,
   listMilestonesService,
   updateMilestoneService,
-} from "@/features/projects/services/milestone-service";
+} from "@/modules/projects/services/milestone-service";
 import {
   createMilestoneSchema,
   listMilestonesSchema,
@@ -26,12 +26,12 @@ import {
   type ListMilestonesInput,
   type MilestoneIdInput,
   type UpdateMilestoneInput,
-} from "@/features/projects/schemas/milestone-schema";
+} from "@/modules/projects/schemas/milestone-schema";
 import {
   canAccessProjectForMutation,
   canAccessMilestone,
   filterMilestonesForUser,
-} from "@/features/projects/actions/project-access-scope";
+} from "@/modules/projects/actions/project-access-scope";
 
 function revalidateMilestonePaths() {
   revalidatePath("/projects");

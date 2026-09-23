@@ -20,7 +20,7 @@ import {
   findLeaveRequestById,
   listLeaveRequests,
   normalizeLeaveRequestDocument,
-} from "@/features/hr/repositories/leave-repository";
+} from "@/modules/hr/repositories/leave-repository";
 
 type CreateLeaveRequestParams = {
   actor: CurrentUser;

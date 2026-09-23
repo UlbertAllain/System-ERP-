@@ -19,7 +19,7 @@ import {
   findAttendanceRecordById,
   listAttendanceRecords,
   normalizeAttendanceRecordDocument,
-} from "@/features/hr/repositories/attendance-repository";
+} from "@/modules/hr/repositories/attendance-repository";
 
 type ClockInParams = {
   actor: CurrentUser;

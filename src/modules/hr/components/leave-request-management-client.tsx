@@ -12,7 +12,7 @@ import {
   createLeaveRequestAction,
   rejectLeaveRequestAction,
   submitLeaveRequestAction,
-} from "@/features/hr/actions";
+} from "@/modules/hr/actions";
 import type {
   LeaveRequestListItem,
   LeaveRequestStatus,

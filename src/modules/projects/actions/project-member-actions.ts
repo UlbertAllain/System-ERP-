@@ -19,7 +19,7 @@ import {
   listProjectMembersService,
   removeProjectMemberService,
   updateProjectMemberService,
-} from "@/features/projects/services/project-member-service";
+} from "@/modules/projects/services/project-member-service";
 import {
   addProjectMemberSchema,
   listProjectMembersSchema,
@@ -31,12 +31,12 @@ import {
   type ProjectMemberIdInput,
   type RemoveProjectMemberInput,
   type UpdateProjectMemberInput,
-} from "@/features/projects/schemas/project-member-schema";
+} from "@/modules/projects/schemas/project-member-schema";
 import {
   canAccessProjectForMutation,
   canAccessProjectMember,
   filterProjectMembersForUser,
-} from "@/features/projects/actions/project-access-scope";
+} from "@/modules/projects/actions/project-access-scope";
 
 function revalidateProjectMemberPaths() {
   revalidatePath("/projects");
