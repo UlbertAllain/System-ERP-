@@ -20,7 +20,7 @@ import {
   restoreClientService,
   updateClientService,
   updateClientLogoService,
-} from "@/features/clients/services/client-service";
+} from "@/modules/clients/services/client-service";
 import {
   clientIdSchema,
   createClientSchema,
@@ -32,7 +32,7 @@ import {
   type CreateClientInput,
   type ListClientsInput,
   type UpdateClientInput,
-} from "@/features/clients/schemas/client-schema";
+} from "@/modules/clients/schemas/client-schema";
 
 function revalidateClientPaths() {
   revalidatePath("/clients");

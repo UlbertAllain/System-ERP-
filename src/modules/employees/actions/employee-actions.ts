@@ -19,7 +19,7 @@ import {
   updateEmployeeService,
   updateOwnEmployeeProfileService,
   updateEmployeePhotoService,
-} from "@/features/employees/services/employee-service";
+} from "@/modules/employees/services/employee-service";
 import {
   createEmployeeSchema,
   employeeIdSchema,
@@ -33,7 +33,7 @@ import {
   type ListEmployeesInput,
   type UpdateEmployeeInput,
   type UpdateOwnEmployeeProfileInput,
-} from "@/features/employees/schemas/employee-schema";
+} from "@/modules/employees/schemas/employee-schema";
 
 export async function listEmployeesAction(
   input: ListEmployeesInput = {},

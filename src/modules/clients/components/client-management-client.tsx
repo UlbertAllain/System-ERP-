@@ -11,7 +11,7 @@ import {
   deleteClientAction,
   updateClientAction,
   updateClientLogoAction,
-} from "@/features/clients/actions";
+} from "@/modules/clients/actions";
 import type { ClientListItem, ClientStatus } from "@/types/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,7 @@ import {
   uploadImageToCloudinary,
   validateImageFile,
 } from "@/lib/cloudinary/client";
-import { ClientManagementList } from "@/features/clients/components/client-management-list";
+import { ClientManagementList } from "@/modules/clients/components/client-management-list";
 
 type ClientManagementClientProps = {
   clients: ClientListItem[];

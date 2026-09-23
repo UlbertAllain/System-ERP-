@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { createSessionAction } from "@/features/auth/actions";
+import { createSessionAction } from "@/modules/auth/actions";
 import { getFirebaseAuthErrorMessage } from "@/lib/auth/firebase-auth-error";
 import { getFirebaseClientAuth } from "@/lib/firebase/client";
 

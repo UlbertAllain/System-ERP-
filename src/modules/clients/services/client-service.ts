@@ -25,7 +25,7 @@ import {
   restoreClient,
   updateClient,
   updateClientLogo,
-} from "@/features/clients/repositories/client-repository";
+} from "@/modules/clients/repositories/client-repository";
 
 type CreateClientParams = {
   actor: CurrentUser;

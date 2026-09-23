@@ -24,7 +24,7 @@ import {
   findEmployeeById,
   listEmployees,
   normalizeEmployeeDocument,
-} from "@/features/employees/repositories/employee-repository";
+} from "@/modules/employees/repositories/employee-repository";
 type CreateEmployeeParams = {
   actor: CurrentUser;
   userId?: string | null;

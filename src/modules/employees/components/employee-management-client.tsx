@@ -14,7 +14,7 @@ import {
   deleteEmployeeAction,
   updateEmployeeAction,
   updateEmployeePhotoAction,
-} from "@/features/employees/actions";
+} from "@/modules/employees/actions";
 import type {
   EmployeeDepartment,
   EmployeeListItem,
@@ -36,7 +36,7 @@ import {
   uploadImageToCloudinary,
   validateImageFile,
 } from "@/lib/cloudinary/client";
-import { EmployeeManagementTable } from "@/features/employees/components/employee-management-table";
+import { EmployeeManagementTable } from "@/modules/employees/components/employee-management-table";
 
 type EmployeeManagementClientProps = {
   employees: EmployeeListItem[];

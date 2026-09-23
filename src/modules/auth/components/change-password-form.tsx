@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 
-import { completePasswordChangeAction } from "@/features/auth/actions";
+import { completePasswordChangeAction } from "@/modules/auth/actions";
 import { getFirebaseClientAuth } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import {
