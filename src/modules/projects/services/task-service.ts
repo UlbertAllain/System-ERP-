@@ -33,7 +33,7 @@ import {
   listTasks,
   listTasksPaginated,
   normalizeTaskDocument,
-} from "@/features/projects/repositories/task-repository";
+} from "@/modules/projects/repositories/task-repository";
 type CreateTaskParams = {
   actor: CurrentUser;
   projectId: string;

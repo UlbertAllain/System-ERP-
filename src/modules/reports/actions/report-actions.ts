@@ -6,7 +6,7 @@ import { createSessionAuthContext } from "@/lib/auth/action-context";
 import { handleActionError } from "@/lib/errors/handle-action-error";
 import { requirePermission } from "@/lib/permissions/guard";
 import { successResponse, type ActionResponse } from "@/lib/response";
-import { getReportsDashboardSummaryService } from "@/features/reports/services/report-service";
+import { getReportsDashboardSummaryService } from "@/modules/reports/services/report-service";
 import type {
   ReportsDashboardDateFilter,
   ReportsDashboardSummary,

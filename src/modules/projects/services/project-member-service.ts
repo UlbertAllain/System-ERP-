@@ -21,7 +21,7 @@ import {
   findProjectMemberById,
   listProjectMembers,
   normalizeProjectMemberDocument,
-} from "@/features/projects/repositories/project-member-repository";
+} from "@/modules/projects/repositories/project-member-repository";
 
 type AddProjectMemberParams = {
   actor: CurrentUser;

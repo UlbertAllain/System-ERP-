@@ -16,13 +16,13 @@ import type {
   TaskCommentListItem,
 } from "@/types/task-comment";
 import type { TaskDetail } from "@/types/task";
-import { getTaskByIdService } from "@/features/projects/services/task-service";
+import { getTaskByIdService } from "@/modules/projects/services/task-service";
 import { timestampToDate } from "@/lib/domain/firestore-value";
 import {
   findTaskCommentById,
   listTaskComments,
   normalizeTaskCommentDocument,
-} from "@/features/projects/repositories/task-comment-repository";
+} from "@/modules/projects/repositories/task-comment-repository";
 
 type CreateTaskCommentParams = {
   actor: CurrentUser;

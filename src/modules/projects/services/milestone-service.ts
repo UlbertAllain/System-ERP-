@@ -25,7 +25,7 @@ import {
   findMilestoneById,
   listMilestones,
   normalizeMilestoneDocument,
-} from "@/features/projects/repositories/milestone-repository";
+} from "@/modules/projects/repositories/milestone-repository";
 
 const OPEN_TASK_STATUSES = new Set([
   "TODO",

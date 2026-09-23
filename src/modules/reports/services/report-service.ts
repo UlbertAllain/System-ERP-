@@ -2,18 +2,18 @@ import "server-only";
 
 import { addMoney, subtractMoney } from "@/lib/domain/money";
 
-import { listClients } from "@/features/clients/repositories/client-repository";
-import { listEmployees } from "@/features/employees/repositories/employee-repository";
+import { listClients } from "@/modules/clients/repositories/client-repository";
+import { listEmployees } from "@/modules/employees/repositories/employee-repository";
 import {
   listExpenses,
   listExpensesByExpenseDateRange,
-} from "@/features/finance/repositories/expense-repository";
+} from "@/modules/finance/repositories/expense-repository";
 import {
   listInvoices,
   listInvoicesByIssueDateRange,
-} from "@/features/finance/repositories/invoice-repository";
-import { listProjects } from "@/features/projects/repositories/project-repository";
-import { listTasks } from "@/features/projects/repositories/task-repository";
+} from "@/modules/finance/repositories/invoice-repository";
+import { listProjects } from "@/modules/projects/repositories/project-repository";
+import { listTasks } from "@/modules/projects/repositories/task-repository";
 import type {
   ReportsDashboardDateFilter,
   ReportsDashboardSummary,

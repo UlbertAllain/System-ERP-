@@ -32,7 +32,7 @@ import {
   listProjects,
   listProjectsPaginated,
   normalizeProjectDocument,
-} from "@/features/projects/repositories/project-repository";
+} from "@/modules/projects/repositories/project-repository";
 type CreateProjectParams = {
   actor: CurrentUser;
   projectCode: string;
