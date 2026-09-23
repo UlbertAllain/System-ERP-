@@ -1,5 +1,5 @@
-import { AuditLogManagementClient } from "@/features/audit-logs/components/audit-log-management-client";
-import { listAuditLogsPaginatedAction } from "@/features/audit-logs/actions";
+import { AuditLogManagementClient } from "@/modules/audit-logs/components/audit-log-management-client";
+import { listAuditLogsPaginatedAction } from "@/modules/audit-logs/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

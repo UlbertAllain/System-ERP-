@@ -11,7 +11,7 @@ import {
 
 import { NextyLabsMark } from "@/components/brand/nexty-labs-mark";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
-import { LoginForm } from "@/features/auth/components/login-form";
+import { LoginForm } from "@/modules/auth/components/login-form";
 import { getCurrentUserFromSession } from "@/lib/auth/session";
 
 const workspaceModules = [

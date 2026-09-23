@@ -1,9 +1,9 @@
-import { ExpenseManagementClient } from "@/features/finance/components/expense-management-client";
-import { listExpensesPaginatedAction } from "@/features/finance/actions";
-import { listProjectsAction } from "@/features/projects/actions";
+import { ExpenseManagementClient } from "@/modules/finance/components/expense-management-client";
+import { listExpensesPaginatedAction } from "@/modules/finance/actions";
+import { listProjectsAction } from "@/modules/projects/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCompanySettingService } from "@/features/settings/services/company-setting-service";
+import { getCompanySettingService } from "@/modules/settings/services/company-setting-service";
 import type { ExpenseCategory, ExpenseStatus } from "@/types/expense";
 import type { PermissionSlug } from "@/constants/permissions";
 

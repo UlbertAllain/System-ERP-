@@ -1,5 +1,5 @@
-import { FinanceDashboardClient } from "@/features/finance/components/finance-dashboard-client";
-import { getFinanceDashboardSummaryAction } from "@/features/finance/actions";
+import { FinanceDashboardClient } from "@/modules/finance/components/finance-dashboard-client";
+import { getFinanceDashboardSummaryAction } from "@/modules/finance/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

@@ -1,6 +1,6 @@
-import { EmployeeManagementClient } from "@/features/employees/components/employee-management-client";
-import { listEmployeesAction } from "@/features/employees/actions";
-import { listUsersAction } from "@/features/users/actions";
+import { EmployeeManagementClient } from "@/modules/employees/components/employee-management-client";
+import { listEmployeesAction } from "@/modules/employees/actions";
+import { listUsersAction } from "@/modules/users/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

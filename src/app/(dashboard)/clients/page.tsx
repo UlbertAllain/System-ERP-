@@ -1,5 +1,5 @@
-import { ClientManagementClient } from "@/features/clients/components/client-management-client";
-import { listClientsPaginatedAction } from "@/features/clients/actions";
+import { ClientManagementClient } from "@/modules/clients/components/client-management-client";
+import { listClientsPaginatedAction } from "@/modules/clients/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ClientStatus } from "@/types/client";

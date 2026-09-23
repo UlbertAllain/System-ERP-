@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { KeyRound, ShieldCheck } from "lucide-react";
 
 import { NextyLabsMark } from "@/components/brand/nexty-labs-mark";
-import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { ChangePasswordForm } from "@/modules/auth/components/change-password-form";
 import { getCurrentUserFromSession } from "@/lib/auth/session";
 
 export default async function ChangePasswordPage() {

@@ -17,16 +17,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PermissionSlug } from "@/constants/permissions";
-import { listExpensesService } from "@/features/finance/services/expense-service";
-import { listInvoicesService } from "@/features/finance/services/invoice-service";
-import { getHrDashboardSummaryService } from "@/features/hr/services/hr-dashboard-service";
+import { listExpensesService } from "@/modules/finance/services/expense-service";
+import { listInvoicesService } from "@/modules/finance/services/invoice-service";
+import { getHrDashboardSummaryService } from "@/modules/hr/services/hr-dashboard-service";
 import {
   filterProjectsForUser,
   filterTasksForUser,
   getAssignedProjectIdsForUser,
-} from "@/features/projects/actions/project-access-scope";
-import { listProjectsService } from "@/features/projects/services/project-service";
-import { listTasksService } from "@/features/projects/services/task-service";
+} from "@/modules/projects/actions/project-access-scope";
+import { listProjectsService } from "@/modules/projects/services/project-service";
+import { listTasksService } from "@/modules/projects/services/task-service";
 import { getCurrentUserFromSession } from "@/lib/auth/session";
 import { addMoney } from "@/lib/domain/money";
 import { getBusinessLabel } from "@/lib/ui/business-labels";
