@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { RoleGuideClient } from "@/features/guide/components/role-guide-client";
+import { RoleGuideClient } from "@/modules/guide/components/role-guide-client";
 import { getCurrentUserFromSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";

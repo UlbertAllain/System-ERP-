@@ -1,12 +1,12 @@
-import { ProjectMemberManagementClient } from "@/features/projects/components/project-member-management-client";
+import { ProjectMemberManagementClient } from "@/modules/projects/components/project-member-management-client";
 import {
   listProjectMembersAction,
   listProjectsAction,
-} from "@/features/projects/actions";
-import { listEmployeesAction } from "@/features/employees/actions";
+} from "@/modules/projects/actions";
+import { listEmployeesAction } from "@/modules/employees/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProjectWorkspaceAccess } from "@/features/projects/project-workspace-access";
+import { getProjectWorkspaceAccess } from "@/modules/projects/project-workspace-access";
 
 export default async function ProjectMembersPage() {
   const currentUser = await requireAnyPagePermission(["project_member.read"]);

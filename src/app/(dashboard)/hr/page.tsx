@@ -7,7 +7,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { getHrDashboardSummaryAction } from "@/features/hr/actions";
+import { getHrDashboardSummaryAction } from "@/modules/hr/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { getBusinessLabel } from "@/lib/ui/business-labels";
 import { Badge } from "@/components/ui/badge";

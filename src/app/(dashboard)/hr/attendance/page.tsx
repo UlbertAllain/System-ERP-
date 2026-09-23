@@ -1,5 +1,5 @@
-import { AttendanceManagementClient } from "@/features/hr/components/attendance-management-client";
-import { listAttendanceRecordsAction } from "@/features/hr/actions";
+import { AttendanceManagementClient } from "@/modules/hr/components/attendance-management-client";
+import { listAttendanceRecordsAction } from "@/modules/hr/actions";
 import { requireAuthenticatedPage } from "@/lib/permissions/page-guard";
 import type { PermissionSlug } from "@/constants/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

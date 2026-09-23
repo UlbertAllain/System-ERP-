@@ -1,5 +1,5 @@
-import { LeaveRequestManagementClient } from "@/features/hr/components/leave-request-management-client";
-import { listLeaveRequestsAction } from "@/features/hr/actions";
+import { LeaveRequestManagementClient } from "@/modules/hr/components/leave-request-management-client";
+import { listLeaveRequestsAction } from "@/modules/hr/actions";
 import { requireAuthenticatedPage } from "@/lib/permissions/page-guard";
 import type { PermissionSlug } from "@/constants/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

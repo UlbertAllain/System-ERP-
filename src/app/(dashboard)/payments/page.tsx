@@ -1,10 +1,10 @@
-import { PaymentManagementClient } from "@/features/finance/components/payment-management-client";
+import { PaymentManagementClient } from "@/modules/finance/components/payment-management-client";
 import {
   listInvoicesAction,
   listPaymentsPaginatedAction,
-} from "@/features/finance/actions";
-import { listClientsAction } from "@/features/clients/actions";
-import { listProjectsAction } from "@/features/projects/actions";
+} from "@/modules/finance/actions";
+import { listClientsAction } from "@/modules/clients/actions";
+import { listProjectsAction } from "@/modules/projects/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PaymentMethod, PaymentStatus } from "@/types/payment";

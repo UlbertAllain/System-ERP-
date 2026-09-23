@@ -1,10 +1,10 @@
-import { InvoiceManagementClient } from "@/features/finance/components/invoice-management-client";
-import { listInvoicesPaginatedAction } from "@/features/finance/actions";
-import { listClientsAction } from "@/features/clients/actions";
-import { listProjectsAction } from "@/features/projects/actions";
+import { InvoiceManagementClient } from "@/modules/finance/components/invoice-management-client";
+import { listInvoicesPaginatedAction } from "@/modules/finance/actions";
+import { listClientsAction } from "@/modules/clients/actions";
+import { listProjectsAction } from "@/modules/projects/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCompanySettingAction } from "@/features/settings/actions";
+import { getCompanySettingAction } from "@/modules/settings/actions";
 import type { InvoiceStatus } from "@/types/invoice";
 
 type InvoicesPageProps = {

@@ -1,11 +1,11 @@
-import { MilestoneManagementClient } from "@/features/projects/components/milestone-management-client";
+import { MilestoneManagementClient } from "@/modules/projects/components/milestone-management-client";
 import {
   listMilestonesAction,
   listProjectsAction,
-} from "@/features/projects/actions";
+} from "@/modules/projects/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProjectWorkspaceAccess } from "@/features/projects/project-workspace-access";
+import { getProjectWorkspaceAccess } from "@/modules/projects/project-workspace-access";
 
 export default async function MilestonesPage() {
   const currentUser = await requireAnyPagePermission([
