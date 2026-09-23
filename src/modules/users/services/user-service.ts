@@ -15,7 +15,7 @@ import {
   findUserById,
   listUsers,
   listUsersPaginated,
-} from "@/features/users/repositories/user-repository";
+} from "@/modules/users/repositories/user-repository";
 type CreateInternalUserParams = {
   actor: CurrentUser;
   name: string;
