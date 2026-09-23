@@ -5,13 +5,10 @@ import { getBusinessLabel } from "@/lib/ui/business-labels";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Clock,
-  Edit,
   Loader2,
   LogIn,
   LogOut,
   Save,
-  Trash2,
   X,
 } from "lucide-react";
 
@@ -26,7 +23,6 @@ import type {
   AttendanceStatus,
 } from "@/types/attendance";
 import type { CurrentUser } from "@/types/auth";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,15 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { AttendanceManagementTable } from "@/features/hr/components/attendance-management-table";
 
 type AttendanceManagementClientProps = {
   currentUser: CurrentUser;
@@ -129,19 +118,6 @@ export function AttendanceManagementClient({
   const [clockOutNotes, setClockOutNotes] = useState("");
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
-
-  const sortedAttendanceRecords = useMemo(() => {
-    return [...attendanceRecords].sort((a, b) => {
-      if (a.date === b.date) {
-        const createdA = a.createdAt?.getTime() ?? 0;
-        const createdB = b.createdAt?.getTime() ?? 0;
-
-        return createdB - createdA;
-      }
-
-      return b.date.localeCompare(a.date);
-    });
-  }, [attendanceRecords]);
 
   const ownTodayAttendance = useMemo(() => {
     return attendanceRecords.find(
@@ -432,116 +408,15 @@ export function AttendanceManagementClient({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="size-5" />
-            Riwayat Kehadiran
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Clock In</TableHead>
-                  <TableHead>Clock Out</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Catatan</TableHead>
-                  <TableHead className="w-[160px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {sortedAttendanceRecords.map((attendance) => {
-                  const ownAttendance = attendance.userId === currentUser.uid;
-
-                  return (
-                    <TableRow key={attendance.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {attendance.employeeName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {ownAttendance
-                              ? "Kehadiran sendiri"
-                              : attendance.userId}
-                          </p>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>{attendance.date}</TableCell>
-
-                      <TableCell>
-                        {formatDateTime(attendance.clockInAt)}
-                      </TableCell>
-
-                      <TableCell>
-                        {formatDateTime(attendance.clockOutAt)}
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge variant={getStatusVariant(attendance.status)}>
-                          {getBusinessLabel(attendance.status)}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="min-w-[220px]">
-                        <p className="line-clamp-2 text-sm">
-                          {attendance.notes ?? "-"}
-                        </p>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {canUpdateAttendance ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                openEditAttendanceDialog(attendance)
-                              }
-                              disabled={isPending}
-                            >
-                              <Edit className="size-4" />
-                            </Button>
-                          ) : null}
-
-                          {canDeleteAttendance ? (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDeleteAttendance(attendance)}
-                              disabled={isPending}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-
-                {sortedAttendanceRecords.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="h-32 text-center text-sm text-muted-foreground"
-                    >
-                      Belum ada catatan kehadiran.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <AttendanceManagementTable
+        records={attendanceRecords}
+        currentUserId={currentUser.uid}
+        canUpdate={canUpdateAttendance}
+        canDelete={canDeleteAttendance}
+        isPending={isPending}
+        onEdit={openEditAttendanceDialog}
+        onDelete={handleDeleteAttendance}
+      />
 
       <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
         <DialogContent className="max-w-xl">

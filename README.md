@@ -26,22 +26,22 @@ Versi ini merupakan revisi P0–P2 yang memprioritaskan integritas transaksi, ot
 
 ## Struktur utama
 
-Repository sedang menjalani structural cleanup secara incremental. Struktur aktif saat ini:
+Struktur aktif adalah modular monolith berbasis feature dengan pure domain module terpisah:
 
 ```text
 app/                    Route, layout, page, dan API
-components/             Reusable UI dan dashboard shell
-features/               Server action, service, schema, dan domain-specific UI
-modules/                Domain rule yang sudah mulai dipisahkan
+components/             Reusable global UI dan dashboard shell
+features/               Action, service, repository, schema, dan domain-specific UI
+modules/                Pure domain rules, state transition, calculation, dan mapper
 lib/                    Auth, Firebase, Cloudinary, error, permission, helper lintas domain
 constants/              Konfigurasi, permission, dan role
-types/                  Type legacy/transitional yang akan dipindahkan per-domain
+types/                  Shared domain contracts lintas feature/module/page
 scripts/                Seed dan migration
 tests/                  Domain regression tests
 docs/                   Migration dan release checklist
 ```
 
-Target architecture adalah modular monolith dengan dependency flow:
+Dependency flow utama:
 
 ```text
 UI / Page
@@ -61,7 +61,7 @@ Repository
 Firestore
 ```
 
-Migration dilakukan domain-by-domain, bukan big-bang refactor.
+Struktur tidak dipindahkan hanya demi keseragaman folder. Refactor dilakukan incremental ketika ada manfaat konkret pada boundary, coupling, security, performance, atau maintainability.
 
 ## Engineering Documentation
 
@@ -198,6 +198,11 @@ npm run check
 ```
 
 GitHub Actions menjalankan quality gate yang sama pada branch cleanup dan pull request.
+
+Quality gate juga:
+- menampilkan ringkasan `npm audit`;
+- menolak dependency vulnerability dengan severity **high** atau **critical**;
+- tetap melaporkan moderate vulnerability agar risiko transitif yang belum dapat diperbaiki upstream tetap terlihat.
 
 Checklist manual sebelum release tersedia di [`docs/TEST-CHECKLIST.md`](docs/TEST-CHECKLIST.md).
 
