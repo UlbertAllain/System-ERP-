@@ -1,5 +1,5 @@
-import { ReportsDashboardClient } from "@/features/reports/components/reports-dashboard-client";
-import { getReportsDashboardSummaryAction } from "@/features/reports/actions";
+import { ReportsDashboardClient } from "@/modules/reports/components/reports-dashboard-client";
+import { getReportsDashboardSummaryAction } from "@/modules/reports/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

@@ -22,7 +22,7 @@ import {
 } from "@/components/dashboard/navigation";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { clearSessionAction } from "@/features/auth/actions";
+import { clearSessionAction } from "@/modules/auth/actions";
 import { getFirebaseClientAuth } from "@/lib/firebase/client";
 import { getBusinessLabel } from "@/lib/ui/business-labels";
 import { cn } from "@/lib/utils";

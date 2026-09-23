@@ -1,5 +1,5 @@
-import { getRolePermissionEditorDataAction } from "@/features/roles/actions";
-import { RolePermissionEditorClient } from "@/features/roles/components/role-permission-editor-client";
+import { getRolePermissionEditorDataAction } from "@/modules/roles/actions";
+import { RolePermissionEditorClient } from "@/modules/roles/components/role-permission-editor-client";
 import { requirePagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

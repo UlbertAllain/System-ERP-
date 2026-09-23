@@ -1,5 +1,5 @@
-import { CompanySettingClient } from "@/features/settings/components/company-setting-client";
-import { getCompanySettingAction } from "@/features/settings/actions";
+import { CompanySettingClient } from "@/modules/settings/components/company-setting-client";
+import { getCompanySettingAction } from "@/modules/settings/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

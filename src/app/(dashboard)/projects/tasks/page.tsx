@@ -1,14 +1,14 @@
-import { TaskManagementClient } from "@/features/projects/components/task-management-client";
+import { TaskManagementClient } from "@/modules/projects/components/task-management-client";
 import {
   listMilestonesAction,
   listProjectMembersAction,
   listProjectsAction,
   listTasksPaginatedAction,
-} from "@/features/projects/actions";
+} from "@/modules/projects/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { TaskPriority, TaskStatus } from "@/types/task";
-import { getProjectWorkspaceAccess } from "@/features/projects/project-workspace-access";
+import { getProjectWorkspaceAccess } from "@/modules/projects/project-workspace-access";
 
 type TasksPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

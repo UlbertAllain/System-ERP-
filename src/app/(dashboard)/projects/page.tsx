@@ -1,11 +1,11 @@
-import { ProjectManagementClient } from "@/features/projects/components/project-management-client";
-import { listProjectsPaginatedAction } from "@/features/projects/actions";
-import { listClientsAction } from "@/features/clients/actions";
-import { listEmployeesAction } from "@/features/employees/actions";
+import { ProjectManagementClient } from "@/modules/projects/components/project-management-client";
+import { listProjectsPaginatedAction } from "@/modules/projects/actions";
+import { listClientsAction } from "@/modules/clients/actions";
+import { listEmployeesAction } from "@/modules/employees/actions";
 import { requireAnyPagePermission } from "@/lib/permissions/page-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ProjectPriority, ProjectStatus } from "@/types/project";
-import { getProjectWorkspaceAccess } from "@/features/projects/project-workspace-access";
+import { getProjectWorkspaceAccess } from "@/modules/projects/project-workspace-access";
 
 type ProjectsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

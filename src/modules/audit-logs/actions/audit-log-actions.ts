@@ -10,13 +10,13 @@ import {
   getAuditLogByIdService,
   listAuditLogsPaginatedService,
   listAuditLogsService,
-} from "@/features/audit-logs/services/audit-log-service";
+} from "@/modules/audit-logs/services/audit-log-service";
 import {
   auditLogIdSchema,
   listAuditLogsSchema,
   type AuditLogIdInput,
   type ListAuditLogsInput,
-} from "@/features/audit-logs/schemas/audit-log-schema";
+} from "@/modules/audit-logs/schemas/audit-log-schema";
 
 export async function listAuditLogsAction(
   input: ListAuditLogsInput = {},

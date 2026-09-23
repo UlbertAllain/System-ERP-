@@ -1,5 +1,5 @@
-import { UserManagementClient } from "@/features/users/components/user-management-client";
-import { listUsersPaginatedAction } from "@/features/users/actions";
+import { UserManagementClient } from "@/modules/users/components/user-management-client";
+import { listUsersPaginatedAction } from "@/modules/users/actions";
 import { requirePagePermission } from "@/lib/permissions/page-guard";
 import type { RoleSlug } from "@/constants/permissions";
 import type { UserStatus } from "@/types/auth";
